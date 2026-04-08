@@ -1,0 +1,16 @@
+#draw {
+    width: 280px;
+    height: 280px;
+    border: 2px solid #131313;
+}
+
+#normalizedPreview {
+    width: 150px;
+    height: 150px;
+    border: 2px solid #131313;
+}
+
+#result {
+    font-family: Caroni;
+    font-size: 1.6rem;
+}

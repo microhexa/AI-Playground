@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The AI Playground</title>
+  <link rel="icon" href="butterfly colored.png">
+  <link rel="stylesheet" href="./styles/main.css">
+</head>
+<body>
+  <div class="page">
+    <div class="topbar">
+        <div class="lang-toggle">
+            <button id="lang-en" class="active">EN</button>
+            <button id="lang-da">DA</button>
+        </div>
+        <img src="butterfly colored.png" alt="AI Playground Logo" class="logo">
+        <h1>The AI Playground</h1>
+    </div>
+    <div class="intro"> 
+        <p>Welcome to the AI Playground - a space where you can explore and interact with different AI models.</p>
+        <p>Use the carousel to browse demos, each showing a unique aspect of AI.</p>
+        <p>Click a card to learn more and try it out.</p>
+    </div>
+    <div class="draw-box">
+        <canvas id="draw-canvas" width="400" height="300"></canvas>
+        <button id="clear-btn">Clear</button>
+    </div>
+    <div class="carousel-area">
+      <button class="nav-btn nav-left" id="btn-left" aria-label="Previous">←</button>
+      <button class="nav-btn nav-right" id="btn-right" aria-label="Next">→</button>
+
+      <div class="card" id="slot-left"></div>
+      <div class="card" id="slot-center"></div>
+      <div class="card" id="slot-right"></div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

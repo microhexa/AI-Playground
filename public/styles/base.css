@@ -1,0 +1,16 @@
+@font-face {
+    font-family: "Caroni";
+    src: url('../fonts/Caroni-Regular.otf');
+}
+
+@font-face {
+    font-family: "Gloria Hallelujah";
+    src: url('../fonts/GloriaHallelujah.ttf');
+}
+
+body {
+    margin: 0;
+    background: whitesmoke;
+    font-family: Gloria Hallelujah, sans-serif;
+    color: #131313;
+}

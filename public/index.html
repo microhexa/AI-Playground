@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The AI Playground | Home</title>
+  <link rel="icon" href="./images/butterfly colored.png">
+  <link rel="stylesheet" href="./styles/main.css">
+</head>
+<body>
+  <div class="page">
+    <div class="topbar">
+        <img src="./images/butterfly colored.png" alt="AI Playground Logo" class="logo">
+        <h1 data-i18n="siteTitle">The AI Playground</h1>
+        <div class="divider vertical">|</div>
+        <div id="menu-home" data-i18n="menuOption1" class="menuoption active">Home</div>
+        <div id="menu-about" data-i18n="menuOption2" class="menuoption">About</div>
+        <div id="menu-curious" data-i18n="menuOption3" class="menuoption">For the curious</div>
+        <div class="lang-toggle">
+            <button id="lang-en" class="active">
+                <img src="./images/flags/uk_color.png" alt="English">
+            </button>
+            <div class="divider">/</div>
+            <button id="lang-da">
+                <img src="./images/flags/dk_color.png" alt="Dansk">
+            </button>
+        </div>
+    </div>
+    <div class="focus">
+      <div class="intro"> 
+          <h2 data-i18n="intro1">Welcome to the AI Playground</h2>
+          <p data-i18n="intro2"> A space where you can explore and interact with different AI models.</p>
+          <p data-i18n="intro3">Click a card to learn more and try it out.</p>
+      </div>
+      <div class="cards-row">
+        <div class="card" id="slot-left">
+          <h2 data-i18n="rulesTitle">Rule-based AI</h2>
+          <p data-i18n="rulesText">It never guesses - it only follows rules. But what happens outside them?</p>
+          <div id="start-rule-based"class="start-btn">Start</div>
+        </div>
+        <div class="card" id="slot-center">
+          <h2 data-i18n="classifierTitle">Image classifier</h2>
+          <p data-i18n="classifierText">It's very good at spotting patterns in pictures. But does it really understand them?</p>
+        </div>
+        <div class="card" id="slot-right">
+          <h2 data-i18n="chatbotTitle">Chatbot</h2>
+          <p data-i18n="chatbotText">It sounds smart and confident. But is it always right?</p>
+        </div>
+      </div>
+    </div>
+    
+  </div>
+  
+
+  <script src="translations.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
