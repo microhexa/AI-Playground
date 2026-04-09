@@ -1,6 +1,6 @@
 .card {
     flex: 1;
-    height: 400px;
+    height: 220px;
     border: #131313 solid 2px;
     padding: 28px;
     display: flex;
@@ -25,6 +25,50 @@
     display: block;
 }
 
-.card:hover {
+.card:not(.locked):hover {
     transform: scale(1.02);
+}
+
+/* Locked state */
+.card.locked {
+  filter: grayscale(1);
+  opacity: 0.65;
+  cursor: default;
+  pointer-events: none; /* disables mouse hover/click reactions on the card itself */
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Prevent hover effects from applying to locked cards */
+.card.locked:hover {
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Grey overlay */
+.card.locked::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(180, 180, 180, 0.35);
+  z-index: 1;
+  border-radius: inherit;
+}
+
+/* Padlock in the center */
+.card.locked::after {
+  content: "🔒";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 3rem;
+  z-index: 2;
+  line-height: 1;
+}
+
+/* Optional: make the text sit visually behind the overlay */
+.card.locked > * {
+  position: relative;
+  z-index: 0;
 }
