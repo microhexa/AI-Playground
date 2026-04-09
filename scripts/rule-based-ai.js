@@ -1,6 +1,7 @@
 const canvas = document.getElementById("draw");
 const ctx = canvas.getContext("2d");
-const resultEl = document.getElementById("result");
+const resultElTop = document.getElementById("result-top");
+const resultElBot = document.getElementById("result-bottom");
 
 // Set canvas sizes
 canvas.width = canvas.offsetWidth;
@@ -61,7 +62,8 @@ canvas.addEventListener("mousemove", draw);
 document.getElementById("reset-btn").addEventListener("click", () => {
   hasDrawn = false;
   resetCanvas();
-  resultEl.innerHTML = "";
+  resultElTop.innerHTML = "";
+  resultElBot.innerHTML = "";
 });
 
 document.getElementById("undo-btn").addEventListener("click", () => {
@@ -94,11 +96,15 @@ document.getElementById("classifyBtn").addEventListener("click", () => {
 
   const pad = (value) => value != null ? value.toFixed(2) : "n/a";
 
-  resultEl.innerHTML = `
-    <strong>Prediction:</strong> ${prediction.label}<br>
-    <strong>Why:</strong><br>
-    ${prediction.reasons.map(r => `- ${r}`).join("<br>")}<br><br>
-  `;
+  resultElTop.innerHTML = `
+    <h2>Prediction:</h2> ${prediction.label}<br>
+    `;
+  resultElBot.innerHTML = `
+    <h2>Why:</h2>
+    <ul>
+    ${prediction.reasons.map(r => `<li>${r}</li>`).join("")}
+    </ul>
+    `;
 });
 
 function resetCanvas() {
