@@ -1,4 +1,5 @@
 .card {
+    position: relative;
     flex: 1;
     height: 220px;
     border: #131313 solid 2px;
@@ -71,4 +72,39 @@
 .card.locked > * {
   position: relative;
   z-index: 0;
+}
+
+.cards-row {
+  position: relative;
+}
+
+.card-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 50px;
+  height: 2px;
+  background: #131313;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.card-arrow::after {
+  content: "";
+  position: absolute;
+  right: -6px;
+  top: 50%;
+  transform: translateY(-50%) rotate(45deg);
+  width: 10px;
+  height: 10px;
+  border-top: 2px solid #131313;
+  border-right: 2px solid #131313;
+}
+
+.card-arrow.arrow-1 {
+  left: calc((100% - 50px) / 3 + 12.5px);
+}
+
+.card-arrow.arrow-2 {
+  left: calc(2 * (100% - 50px) / 3 + 37.5px);
 }
