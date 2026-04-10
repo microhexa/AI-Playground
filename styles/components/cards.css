@@ -8,6 +8,9 @@
     flex-direction: column;
     background: rgba(255,255,255,0.94);
     color: #111111;
+    transform-style: preserve-3d;
+    backface-visibility: hidden;
+    will-change: transform;
 }
 
 .card h2 {
@@ -24,10 +27,6 @@
     max-width: 100%;
     margin: 50px auto 15px auto;
     display: block;
-}
-
-.card:not(.locked):hover {
-    transform: scale(1.02);
 }
 
 /* Locked state */

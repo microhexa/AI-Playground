@@ -9,8 +9,9 @@ const whyTextEl = document.getElementById("result-why");
 canvas.width = canvas.offsetWidth;
 canvas.height = canvas.offsetHeight;
 
-// Drawing history for undo
+// Drawing history for undo/redo
 let history = [];
+let redoHistory = [];
 
 let placeholderImage = null;
 
@@ -46,6 +47,9 @@ canvas.addEventListener("mouseup", () => {
   if (drawing && strokeMoved) {
     history.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
     if (history.length > 10) history.shift();
+
+    // New action invalidates redo history
+    redoHistory = [];
   }
   drawing = false;
   ctx.beginPath();
@@ -55,6 +59,9 @@ canvas.addEventListener("mouseleave", () => {
   if (drawing && strokeMoved) {
     history.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
     if (history.length > 10) history.shift();
+
+    // New action invalidates redo history
+    redoHistory = [];
   }
   drawing = false;
   ctx.beginPath();
@@ -70,7 +77,9 @@ document.getElementById("reset-btn").addEventListener("click", () => {
 
 document.getElementById("undo-btn").addEventListener("click", () => {
   if (history.length > 1) {
-    history.pop();
+    const currentState = history.pop();
+    redoHistory.push(currentState);
+
     const previousState = history[history.length - 1];
     ctx.putImageData(previousState, 0, 0);
 
@@ -78,32 +87,42 @@ document.getElementById("undo-btn").addEventListener("click", () => {
   }
 });
 
-document.getElementById("classifyBtn").addEventListener("click", () => {
+document.getElementById("redo-btn").addEventListener("click", () => {
+  if (redoHistory.length > 0) {
+    const redoneState = redoHistory.pop();
+    history.push(redoneState);
+
+    if (history.length > 10) history.shift();
+
+    ctx.putImageData(redoneState, 0, 0);
+    hasDrawn = !isSameImageData(redoneState, placeholderImage);
+  }
+});
+
+document.getElementById("classify-btn").addEventListener("click", () => {
   const normCanvas = normalizeCanvas(ctx, canvas.width, canvas.height, 64);
   const normCtx = normCanvas.getContext("2d");
   const features = extractFeatures(normCtx, 64, 64);
   const prediction = classifyByRules(features);
 
   const challengeMap = {
-        labelSun: "challenge-sun",
-        labelHouse: "challenge-house",
-        labelFish: "challenge-fish"
-    };
+    labelSun: "challenge-sun",
+    labelHouse: "challenge-house",
+    labelFish: "challenge-fish"
+  };
 
-    if (challengeMap[prediction.label]) {
-        document.getElementById(challengeMap[prediction.label]).checked = true;
-    }
-
-  const pad = (value) => value != null ? value.toFixed(2) : "n/a";
+  if (challengeMap[prediction.label]) {
+    document.getElementById(challengeMap[prediction.label]).checked = true;
+  }
 
   detectedTextEl.dataset.i18n = prediction.label;
   detectedTextEl.textContent = t(prediction.label);
 
   whyTextEl.innerHTML = `
     <ul>
-    ${prediction.reasons.map(reason => `<li data-i18n="${reason}">${t(reason)}</li>`).join("")}
+      ${prediction.reasons.map(reason => `<li data-i18n="${reason}">${t(reason)}</li>`).join("")}
     </ul>
-    `;
+  `;
 
   applyTranslations();
 });
@@ -123,6 +142,7 @@ function resetCanvas() {
   const initialState = ctx.getImageData(0, 0, canvas.width, canvas.height);
   placeholderImage = initialState;
   history = [initialState];
+  redoHistory = [];
 }
 
 function setResultPlaceholder() {
@@ -171,7 +191,6 @@ function normalizeCanvas(sourceCtx, width, height, targetSize = 64) {
   let maxY = -1;
   let foundInk = false;
 
-  // Find bounding box of dark pixels
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const i = (y * width + x) * 4;
@@ -206,7 +225,6 @@ function normalizeCanvas(sourceCtx, width, height, targetSize = 64) {
   const boxWidth = maxX - minX + 1;
   const boxHeight = maxY - minY + 1;
 
-  // Add a little padding so drawing does not touch the borders
   const padding = 4;
   const availableSize = targetSize - 2 * padding;
 
@@ -217,7 +235,6 @@ function normalizeCanvas(sourceCtx, width, height, targetSize = 64) {
   const offsetX = Math.floor((targetSize - newWidth) / 2);
   const offsetY = Math.floor((targetSize - newHeight) / 2);
 
-  // Draw cropped region directly into normalized canvas
   normCtx.drawImage(
     canvas,
     minX, minY, boxWidth, boxHeight,
@@ -307,30 +324,29 @@ function extractFeatures(ctx, width, height) {
     }
   }
 
-    let upperMiddle = 0;
-    let lowerMiddle = 0;
+  let upperMiddle = 0;
+  let lowerMiddle = 0;
 
-    for (const p of inkPixels) {
+  for (const p of inkPixels) {
     if (p.y >= height / 3 && p.y < 2 * height / 3) {
-        if (p.x < width / 2) upperMiddle++;
-        else lowerMiddle++;
+      if (p.x < width / 2) upperMiddle++;
+      else lowerMiddle++;
     }
-    }
+  }
 
-    const leftHalfRatio = inkPixels.filter(p => p.x < width / 2).length / inkPixels.length;
-    const rightHalfRatio = inkPixels.filter(p => p.x >= width / 2).length / inkPixels.length;
+  const leftHalfRatio = inkPixels.filter(p => p.x < width / 2).length / inkPixels.length;
+  const rightHalfRatio = inkPixels.filter(p => p.x >= width / 2).length / inkPixels.length;
 
-    // Count ink in each column
-    const colCounts = Array(width).fill(0);
-    for (const p of inkPixels) {
+  const colCounts = Array(width).fill(0);
+  for (const p of inkPixels) {
     colCounts[p.x]++;
-    }
+  }
 
-    const maxColCount = Math.max(...colCounts);
-    const minColCount = Math.min(...colCounts.filter(c => c > 0));
-    const colVariation = maxColCount > 0 ? minColCount / maxColCount : 0;
+  const maxColCount = Math.max(...colCounts);
+  const minColCount = Math.min(...colCounts.filter(c => c > 0));
+  const colVariation = maxColCount > 0 ? minColCount / maxColCount : 0;
 
-    return {
+  return {
     empty: false,
     inkCount: inkPixels.length,
     minX, maxX, minY, maxY,
@@ -349,7 +365,7 @@ function extractFeatures(ctx, width, height) {
     verticalSymmetry: verticalMatches / verticalChecks,
     horizontalSymmetry: horizontalMatches / horizontalChecks,
     colVariation
-    };
+  };
 }
 
 function classifyByRules(f) {
@@ -359,7 +375,6 @@ function classifyByRules(f) {
     return { label: "labelNothing", reasons: ["reasonNoInk"] };
   }
 
-  // Fish-like
   if (
     f.aspectRatio > 1.2 &&
     f.middleHRatio > 0.45 &&
@@ -377,7 +392,6 @@ function classifyByRules(f) {
     return { label: "labelFish", reasons };
   }
 
-  // House-like
   if (
     f.bottomRatio > 0.30 &&
     f.middleHRatio > 0.30 &&
@@ -391,7 +405,6 @@ function classifyByRules(f) {
     return { label: "labelHouse", reasons };
   }
 
-  // Sun-like
   if (
     f.aspectRatio > 0.85 &&
     f.aspectRatio < 1.3 &&

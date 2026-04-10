@@ -42,8 +42,9 @@
 
 .button-row {
     display: flex;
-    gap: 10px;
+    gap: 6px;
     width: 100%;
+    height: 48px;
 }
 
 .draw-area {
