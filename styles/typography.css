@@ -21,6 +21,12 @@ h2 {
     margin-bottom: 10px;
 }
 
+.popup h2,
+#rule-based-ai h2 {
+    font-family: Caroni, sans-serif;
+    font-size: 1.8rem;
+}
+
 .intro {
     max-width: 850px;
     text-align: left;
