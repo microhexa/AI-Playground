@@ -13,6 +13,18 @@ const ruleBuilderBlocks = document.getElementById("rule-builder-blocks");
 const saveRuleBtn = document.getElementById("save-rule-btn");
 const cancelRuleBtn = document.getElementById("cancel-rule-btn");
 const newRuleNameInput = document.getElementById("new-rule-name");
+const rulesPopupTitle = document.getElementById("rules-popup-title");
+const newRuleLabelText = document.getElementById("new-rule-label-text");
+
+function ruleTextFromKeys(promptKey, optionKey) {
+  return `${t(promptKey)} ${t(optionKey)}`;
+}
+
+function refreshRulesStaticTranslations() {
+  if (rulesPopupTitle) rulesPopupTitle.textContent = t("rulesPopupTitle");
+  if (newRuleLabelText) newRuleLabelText.textContent = t("ruleNameLabel");
+  if (newRuleNameInput) newRuleNameInput.placeholder = t("ruleNamePlaceholder");
+}
 
 function setRuleBuilderOpen(isOpen) {
   if (!rulesPopupContent) return;
@@ -43,25 +55,25 @@ cancelRuleBtn.addEventListener("click", () => {
 const ruleBlocks = [
   {
     id: "shape",
-    prompt: "The drawing should be...",
+    promptKey: "rulePromptShape",
     options: [
       {
         id: "wide",
-        text: "wider than tall",
+        textKey: "ruleOptionWide",
         conditions: [
           { feature: "aspectRatio", op: ">", value: 1.2 }
         ]
       },
       {
         id: "tall",
-        text: "taller than wide",
+        textKey: "ruleOptionTall",
         conditions: [
           { feature: "aspectRatio", op: "<", value: 0.95 }
         ]
       },
       {
         id: "round",
-        text: "about as wide as it is tall",
+        textKey: "ruleOptionRound",
         conditions: [
           { feature: "aspectRatio", op: ">", value: 0.85 },
           { feature: "aspectRatio", op: "<", value: 1.3 }
@@ -71,39 +83,39 @@ const ruleBlocks = [
   },
   {
     id: "position",
-    prompt: "Most of the drawing should be...",
+    promptKey: "rulePromptPosition",
     options: [
       {
         id: "top",
-        text: "near the top",
+        textKey: "ruleOptionTop",
         conditions: [
           { feature: "topRatio", op: ">", value: 0.30 }
         ]
       },
       {
         id: "middle",
-        text: "in the middle",
+        textKey: "ruleOptionMiddle",
         conditions: [
           { feature: "middleHRatio", op: ">", value: 0.45 }
         ]
       },
       {
         id: "bottom",
-        text: "near the bottom",
+        textKey: "ruleOptionBottom",
         conditions: [
           { feature: "bottomRatio", op: ">", value: 0.30 }
         ]
       },
       {
         id: "left",
-        text: "on the left",
+        textKey: "ruleOptionLeft",
         conditions: [
           { feature: "leftRatio", op: ">", value: 0.45 }
         ]
       },
       {
         id: "right",
-        text: "on the right",
+        textKey: "ruleOptionRight",
         conditions: [
           { feature: "rightRatio", op: ">", value: 0.45 }
         ]
@@ -112,18 +124,18 @@ const ruleBlocks = [
   },
   {
     id: "sides",
-    prompt: "The two sides should look...",
+    promptKey: "rulePromptSides",
     options: [
       {
         id: "same",
-        text: "similar",
+        textKey: "ruleOptionSame",
         conditions: [
           { feature: "verticalSymmetry", op: ">", value: 0.75 }
         ]
       },
       {
         id: "different",
-        text: "different",
+        textKey: "ruleOptionDifferent",
         conditions: [
           { feature: "verticalSymmetry", op: "<", value: 0.9 }
         ]
@@ -132,18 +144,18 @@ const ruleBlocks = [
   },
   {
     id: "fullness",
-    prompt: "The drawing should...",
+    promptKey: "rulePromptFullness",
     options: [
       {
         id: "filled",
-        text: "fill a lot of the space",
+        textKey: "ruleOptionFilled",
         conditions: [
           { feature: "density", op: ">", value: 0.16 }
         ]
       },
       {
         id: "sparse",
-        text: "have a lot of empty space",
+        textKey: "ruleOptionSparse",
         conditions: [
           { feature: "density", op: "<", value: 0.18 }
         ]
@@ -158,10 +170,11 @@ function populateRuleBuilderFromRule(rule, readOnly = false) {
   ruleBuilder.classList.remove("hidden");
   setRuleBuilderOpen(true);
   newRuleNameInput.value = rule.name;
+  ruleBuilder.dataset.activeRuleId = rule.id;
   ruleBuilder.dataset.editingRuleId = readOnly ? "" : rule.id;
   ruleBuilder.dataset.readOnly = readOnly ? "true" : "false";
 
-  ruleBuilderTitle.textContent = readOnly ? "View rule" : "Edit rule";
+  ruleBuilderTitle.textContent = readOnly ? t("ruleBuilderTitleView") : t("ruleBuilderTitleEdit");
 
   const selects = ruleBuilderBlocks.querySelectorAll("select");
 
@@ -201,11 +214,11 @@ function renderRuleBuilder(readOnly = false) {
     wrapper.className = "rule-builder-block";
 
     wrapper.innerHTML = `
-      <label for="block-${block.id}">${block.prompt}</label>
+      <label for="block-${block.id}">${t(block.promptKey)}</label>
       <select id="block-${block.id}" data-block-id="${block.id}">
-        <option value="">${readOnly ? "-" : "Choose one"}</option>
+        <option value="">${readOnly ? "-" : t("ruleChooseOne")}</option>
         ${block.options.map(option => `
-          <option value="${option.id}">${option.text}</option>
+          <option value="${option.id}">${t(option.textKey)}</option>
         `).join("")}
       </select>
     `;
@@ -217,13 +230,15 @@ function renderRuleBuilder(readOnly = false) {
 function resetRuleBuilder() {
   ruleBuilder.classList.add("hidden");
   setRuleBuilderOpen(false);
+  ruleBuilder.dataset.activeRuleId = "";
   ruleBuilder.dataset.editingRuleId = "";
   ruleBuilder.dataset.readOnly = "false";
   newRuleNameInput.value = "";
   newRuleNameInput.disabled = false;
   ruleBuilderBlocks.innerHTML = "";
-  ruleBuilderTitle.textContent = "Make your own rule";
+  ruleBuilderTitle.textContent = t("ruleBuilderTitleCreate");
   saveRuleBtn.style.display = "";
+  refreshRulesStaticTranslations();
 }
 
 saveRuleBtn.addEventListener("click", () => {
@@ -232,7 +247,7 @@ saveRuleBtn.addEventListener("click", () => {
   const name = newRuleNameInput.value.trim();
 
   if (!name) {
-    alert("Please choose a name for your label.");
+    alert(t("ruleAlertName"));
     return;
   }
 
@@ -253,11 +268,11 @@ saveRuleBtn.addEventListener("click", () => {
     if (!option) return;
 
     selectedConditions.push(...option.conditions);
-    childExplanation.push(`${block.prompt} ${option.text}`);
+    childExplanation.push(ruleTextFromKeys(block.promptKey, option.textKey));
   });
 
   if (selectedConditions.length === 0) {
-    alert("Please choose at least one rule.");
+    alert(t("ruleAlertRule"));
     return;
   }
 
@@ -378,10 +393,10 @@ const builtInRules = [
       { feature: "middleHRatio", op: ">", value: 0.45 },
       { feature: "verticalSymmetry", op: "<", value: 0.9 }
     ],
-    childExplanation: [
-      "The drawing should be... wider than tall",
-      "Most of the drawing should be... in the middle",
-      "The two sides should look... different"
+    childExplanationKeys: [
+      ["rulePromptShape", "ruleOptionWide"],
+      ["rulePromptPosition", "ruleOptionMiddle"],
+      ["rulePromptSides", "ruleOptionDifferent"]
     ]
   },
   {
@@ -395,11 +410,11 @@ const builtInRules = [
       { feature: "aspectRatio", op: "<", value: 0.95 },
       { feature: "density", op: ">", value: 0.16 }
     ],
-    childExplanation: [
-      "The drawing should be... taller than wide",
-      "Most of the drawing should be... near the bottom",
-      "The two sides should look... similar",
-      "The drawing should... fill a lot of the space"
+    childExplanationKeys: [
+      ["rulePromptShape", "ruleOptionTall"],
+      ["rulePromptPosition", "ruleOptionBottom"],
+      ["rulePromptSides", "ruleOptionSame"],
+      ["rulePromptFullness", "ruleOptionFilled"]
     ]
   },
   {
@@ -413,10 +428,10 @@ const builtInRules = [
       { feature: "verticalSymmetry", op: ">", value: 0.75 },
       { feature: "density", op: "<", value: 0.18 }
     ],
-    childExplanation: [
-      "The drawing should be... about as wide as it is tall",
-      "The two sides should look... similar",
-      "The drawing should... have a lot of empty space"
+    childExplanationKeys: [
+      ["rulePromptShape", "ruleOptionRound"],
+      ["rulePromptSides", "ruleOptionSame"],
+      ["rulePromptFullness", "ruleOptionSparse"]
     ]
   }
 ];
@@ -485,10 +500,12 @@ function renderRules() {
   if (!rulesList) return;
 
   rulesList.innerHTML = "";
+  refreshRulesStaticTranslations();
 
   for (const rule of window.ruleDefinitions) {
     const card = document.createElement("div");
     const isCustom = !rule.locked;
+    const ruleTitle = !isCustom && rule.label ? t(rule.label) : rule.name;
 
     card.className = "rule-card";
     card.dataset.ruleId = rule.id;
@@ -503,7 +520,7 @@ function renderRules() {
           ${isCustom ? `
             <div class="rule-drag-handle" title="Drag to reorder" aria-label="Drag to reorder" draggable="true">≡</div>
           ` : ``}
-          <div class="rule-title">${rule.name}</div>
+          <div class="rule-title">${ruleTitle}</div>
         </div>
 
         <div class="rule-header-right">
@@ -656,3 +673,38 @@ function evaluateCondition(f, condition) {
 function ruleMatches(f, rule) {
   return rule.conditions.every(condition => evaluateCondition(f, condition));
 }
+
+window.applyRulesTranslations = function applyRulesTranslations() {
+  refreshRulesStaticTranslations();
+  if (ruleBuilder && !ruleBuilder.classList.contains("hidden")) {
+    const activeRuleId = ruleBuilder.dataset.activeRuleId;
+    const isReadOnly = ruleBuilder.dataset.readOnly === "true";
+    if (activeRuleId) {
+      const sourceRule = window.ruleDefinitions.find((rule) => rule.id === activeRuleId);
+      if (sourceRule) {
+        populateRuleBuilderFromRule(sourceRule, isReadOnly);
+      }
+    } else {
+      const selectedValues = Array.from(ruleBuilderBlocks.querySelectorAll("select")).map((select) => ({
+        blockId: select.dataset.blockId,
+        value: select.value
+      }));
+      const currentName = newRuleNameInput.value;
+      renderRuleBuilder(false);
+      ruleBuilder.classList.remove("hidden");
+      setRuleBuilderOpen(true);
+      ruleBuilderTitle.textContent = t("ruleBuilderTitleCreate");
+      newRuleNameInput.disabled = false;
+      saveRuleBtn.style.display = "";
+      newRuleNameInput.value = currentName;
+      selectedValues.forEach(({ blockId, value }) => {
+        const select = ruleBuilderBlocks.querySelector(`[data-block-id="${blockId}"]`);
+        if (select) select.value = value;
+      });
+    }
+  }
+  if (!rulesList || !rulesPopup || rulesPopup.classList.contains("hidden")) return;
+  renderRules();
+};
+
+refreshRulesStaticTranslations();

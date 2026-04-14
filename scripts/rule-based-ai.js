@@ -388,7 +388,9 @@ function classifyByRules(f) {
     if (ruleMatches(f, rule)) {
       return {
         label: rule.label,
-        reasons: rule.childExplanation?.length ? rule.childExplanation : rule.reasons
+        reasons: rule.childExplanationKeys?.length
+          ? rule.childExplanationKeys.map(([promptKey, optionKey]) => `${t(promptKey)} ${t(optionKey)}`)
+          : (rule.childExplanation?.length ? rule.childExplanation : rule.reasons)
       };
     }
   }
