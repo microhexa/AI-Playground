@@ -388,7 +388,7 @@ function classifyByRules(f) {
     if (ruleMatches(f, rule)) {
       return {
         label: rule.label,
-        reasons: rule.reasons
+        reasons: rule.childExplanation?.length ? rule.childExplanation : rule.reasons
       };
     }
   }

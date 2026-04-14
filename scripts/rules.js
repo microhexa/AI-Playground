@@ -56,7 +56,7 @@ const ruleBlocks = [
         id: "tall",
         text: "taller than wide",
         conditions: [
-          { feature: "aspectRatio", op: "<", value: 0.8 }
+          { feature: "aspectRatio", op: "<", value: 0.95 }
         ]
       },
       {
@@ -74,6 +74,13 @@ const ruleBlocks = [
     prompt: "Most of the drawing should be...",
     options: [
       {
+        id: "top",
+        text: "near the top",
+        conditions: [
+          { feature: "topRatio", op: ">", value: 0.30 }
+        ]
+      },
+      {
         id: "middle",
         text: "in the middle",
         conditions: [
@@ -85,6 +92,20 @@ const ruleBlocks = [
         text: "near the bottom",
         conditions: [
           { feature: "bottomRatio", op: ">", value: 0.30 }
+        ]
+      },
+      {
+        id: "left",
+        text: "on the left",
+        conditions: [
+          { feature: "leftRatio", op: ">", value: 0.45 }
+        ]
+      },
+      {
+        id: "right",
+        text: "on the right",
+        conditions: [
+          { feature: "rightRatio", op: ">", value: 0.45 }
         ]
       }
     ]
@@ -108,11 +129,31 @@ const ruleBlocks = [
         ]
       }
     ]
+  },
+  {
+    id: "fullness",
+    prompt: "The drawing should...",
+    options: [
+      {
+        id: "filled",
+        text: "fill a lot of the space",
+        conditions: [
+          { feature: "density", op: ">", value: 0.16 }
+        ]
+      },
+      {
+        id: "sparse",
+        text: "have a lot of empty space",
+        conditions: [
+          { feature: "density", op: "<", value: 0.18 }
+        ]
+      }
+    ]
   }
 ];
 
 function populateRuleBuilderFromRule(rule, readOnly = false) {
-  renderRuleBuilder();
+  renderRuleBuilder(readOnly);
 
   ruleBuilder.classList.remove("hidden");
   setRuleBuilderOpen(true);
@@ -152,7 +193,7 @@ function populateRuleBuilderFromRule(rule, readOnly = false) {
   saveRuleBtn.style.display = readOnly ? "none" : "";
 }
 
-function renderRuleBuilder() {
+function renderRuleBuilder(readOnly = false) {
   ruleBuilderBlocks.innerHTML = "";
 
   for (const block of ruleBlocks) {
@@ -162,7 +203,7 @@ function renderRuleBuilder() {
     wrapper.innerHTML = `
       <label for="block-${block.id}">${block.prompt}</label>
       <select id="block-${block.id}" data-block-id="${block.id}">
-        <option value="">Choose one</option>
+        <option value="">${readOnly ? "-" : "Choose one"}</option>
         ${block.options.map(option => `
           <option value="${option.id}">${option.text}</option>
         `).join("")}
@@ -332,21 +373,15 @@ const builtInRules = [
     name: "Fish",
     label: "labelFish",
     locked: true,
-    reasons: [
-      "reasonFishWidth",
-      "reasonFishMiddle",
-      "reasonFishTopBottomLow",
-      "reasonFishImbalance",
-      "reasonFishBodyTail"
-    ],
     conditions: [
       { feature: "aspectRatio", op: ">", value: 1.2 },
       { feature: "middleHRatio", op: ">", value: 0.45 },
-      { feature: "topRatio", op: "<", value: 0.35 },
-      { feature: "bottomRatio", op: "<", value: 0.35 },
-      { feature: "verticalSymmetry", op: "<", value: 0.9 },
-      { feature: "colVariation", op: "<", value: 0.3 },
-      { feature: "leftRightDifference", op: ">", value: 0.08 }
+      { feature: "verticalSymmetry", op: "<", value: 0.9 }
+    ],
+    childExplanation: [
+      "The drawing should be... wider than tall",
+      "Most of the drawing should be... in the middle",
+      "The two sides should look... different"
     ]
   },
   {
@@ -354,17 +389,17 @@ const builtInRules = [
     name: "House",
     label: "labelHouse",
     locked: true,
-    reasons: [
-      "reasonHouseMidBottom",
-      "reasonHouseSymmetric",
-      "reasonHouseProportions"
-    ],
     conditions: [
       { feature: "bottomRatio", op: ">", value: 0.30 },
-      { feature: "middleHRatio", op: ">", value: 0.30 },
       { feature: "verticalSymmetry", op: ">", value: 0.75 },
-      { feature: "aspectRatio", op: ">", value: 0.7 },
-      { feature: "aspectRatio", op: "<", value: 1.4 }
+      { feature: "aspectRatio", op: "<", value: 0.95 },
+      { feature: "density", op: ">", value: 0.16 }
+    ],
+    childExplanation: [
+      "The drawing should be... taller than wide",
+      "Most of the drawing should be... near the bottom",
+      "The two sides should look... similar",
+      "The drawing should... fill a lot of the space"
     ]
   },
   {
@@ -372,17 +407,16 @@ const builtInRules = [
     name: "Sun",
     label: "labelSun",
     locked: true,
-    reasons: [
-      "reasonSunBalanced",
-      "reasonSunSparse",
-      "reasonSunSymmetry"
-    ],
     conditions: [
       { feature: "aspectRatio", op: ">", value: 0.85 },
       { feature: "aspectRatio", op: "<", value: 1.3 },
-      { feature: "density", op: "<", value: 0.18 },
       { feature: "verticalSymmetry", op: ">", value: 0.75 },
-      { feature: "horizontalSymmetry", op: ">", value: 0.75 }
+      { feature: "density", op: "<", value: 0.18 }
+    ],
+    childExplanation: [
+      "The drawing should be... about as wide as it is tall",
+      "The two sides should look... similar",
+      "The drawing should... have a lot of empty space"
     ]
   }
 ];

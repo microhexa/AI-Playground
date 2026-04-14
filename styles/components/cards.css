@@ -77,33 +77,45 @@
   position: relative;
 }
 
-.card-arrow {
-  position: absolute;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: 50px;
-  height: 2px;
-  background: #131313;
-  z-index: 1;
-  pointer-events: none;
+.cards-progress {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  align-items: center;
+  width: 100%;
+  margin: 12px 0 0;
+  position: relative;
 }
 
-.card-arrow::after {
+.cards-progress::before {
   content: "";
   position: absolute;
-  right: -6px;
+  left: calc(100% / 6);
+  right: calc(100% / 6);
   top: 50%;
-  transform: translateY(-50%) rotate(45deg);
-  width: 10px;
-  height: 10px;
-  border-top: 2px solid #131313;
-  border-right: 2px solid #131313;
+  height: 2px;
+  transform: translateY(-50%);
+  background-image: radial-gradient(circle, #9a9a9a 1.2px, transparent 1.2px);
+  background-size: 10px 2px;
+  background-repeat: repeat-x;
+  background-position: center;
+  z-index: 0;
 }
 
-.card-arrow.arrow-1 {
-  left: calc((100% - 50px) / 3 + 12.5px);
-}
-
-.card-arrow.arrow-2 {
-  left: calc(2 * (100% - 50px) / 3 + 37.5px);
+.progress-step {
+  width: 34px;
+  height: 34px;
+  border: 2px solid #8a8a8a;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #555555;
+  background: rgba(255,255,255,0.8);
+  font-family: Caroni, sans-serif;
+  font-size: 1.25rem;
+  line-height: 1;
+  flex: 0 0 auto;
+  justify-self: center;
+  position: relative;
+  z-index: 1;
 }
