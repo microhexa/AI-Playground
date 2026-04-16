@@ -146,6 +146,7 @@
     setPredictionPlaceholder();
     setCanvasAvailability(false);
     setActiveTab("training");
+    applyTranslations();
 
     canvas.addEventListener("mousedown", startDrawing);
     canvas.addEventListener("mousemove", draw);

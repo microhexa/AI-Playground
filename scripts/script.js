@@ -9,6 +9,7 @@ function updateLanguageButtons() {
 if (enBtn) {
     enBtn.onclick = () => {
         setLanguage("en");
+        updatePageMeta();
         updateLanguageButtons();
         applyTranslations();
     };
@@ -17,6 +18,7 @@ if (enBtn) {
 if (daBtn) {
     daBtn.onclick = () => {
         setLanguage("da");
+        updatePageMeta();
         updateLanguageButtons();
         applyTranslations();
     };
@@ -30,6 +32,23 @@ const startImageClassifierBtn = document.getElementById("start-image-classifier"
 const returnBtn = document.getElementById("return-btn");
 const classifierCard = document.getElementById("slot-center");
 const IMAGE_CLASSIFIER_UNLOCK_KEY = "imageClassifierUnlocked";
+
+function updatePageMeta() {
+    document.documentElement.lang = currentLang === "da" ? "da" : "en";
+
+    const currentPath = window.location.pathname;
+    if (currentPath.endsWith("image-classifier.html")) return;
+
+    if (currentPath.endsWith("about.html")) {
+        document.title = t("pageTitleAbout");
+    } else if (currentPath.endsWith("other-resources.html")) {
+        document.title = t("pageTitleCurious");
+    } else if (currentPath.endsWith("rule-based-ai.html")) {
+        document.title = t("pageTitleRuleBased");
+    } else {
+        document.title = t("pageTitleHome");
+    }
+}
 
 if (aboutMenu) {
     aboutMenu.onclick = () => {
@@ -85,5 +104,6 @@ if (classifierCard) {
     }
 }
 
+updatePageMeta();
 updateLanguageButtons();
 applyTranslations();
