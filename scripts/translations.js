@@ -1,4 +1,4 @@
-const translations = {
+﻿const translations = {
     en: {
         siteTitle: "The AI Playground",
         menuOption1: "Home",
@@ -16,10 +16,10 @@ const translations = {
         intro3: "",
         start: "Start",
         chatbotTitle: "Vision Chat",
-        chatbotText: "It sounds smart and confident.",
+        chatbotText: "It talks like it understands.",
         chatbotRoomTitle: "Vision Chat",
         classifierTitle: "Image classifier",
-        classifierText: "It's very good at spotting patterns in pictures.",
+        classifierText: "It spots patterns in pictures.",
         imageClassifierRoomTitle: "Image classifier",
         imageClassifierTrainingTab: "Training",
         imageClassifierTestingTab: "Testing",
@@ -109,7 +109,7 @@ const translations = {
         ruleOptionSparse: "have a lot of empty space",
         ruleAlertName: "Please choose a name for your label.",
         ruleAlertRule: "Please choose at least one rule.",
-        rulesText: "It never guesses - it only follows rules. Can the AI identify what you draw?",
+        rulesText: "It follows simple rules.",
         challengesTitle: "Challenges",
         challengeSun: "Draw a sun",
         challengeHouse: "Draw a house",
@@ -158,16 +158,16 @@ const translations = {
         pageTitleRuleBased: "AI Legepladsen | Regelbaseret AI",
         pageTitleImageClassifier: "AI Legepladsen | Billedklassifikator",
         pageTitleChatbot: "AI Legepladsen | Vision Chat",
-        introKicker: "LÃ¦r AI ved at prÃ¸ve det selv",
-        intro1: "PrÃ¸v forskellige typer AI",
-        intro2: "VÃ¦lg et kort nedenfor for at udforske, hvordan hver type virker.",
+        introKicker: "Lær AI ved at prøve det selv",
+        intro1: "Prøv forskellige typer AI",
+        intro2: "Vælg et kort nedenfor for at udforske, hvordan hver type virker.",
         intro3: "",
         start: "Start",
         chatbotTitle: "Vision Chat",
-        chatbotText: "Den lyder smart og selvsikker.",
+        chatbotText: "Den taler, som om den forstår.",
         chatbotRoomTitle: "Vision Chat",
         classifierTitle: "Billedklassifikator",
-        classifierText: "Den er meget god til at genkende mønstre i billeder.",
+        classifierText: "Den finder mønstre i billeder.",
         imageClassifierRoomTitle: "Billedklassifikator",
         imageClassifierTrainingTab: "Træning",
         imageClassifierTestingTab: "Test",
@@ -257,7 +257,7 @@ const translations = {
         ruleOptionSparse: "have meget tom plads",
         ruleAlertName: "Vælg et navn til din label.",
         ruleAlertRule: "Vælg mindst én regel.",
-        rulesText: "Den gætter aldrig - den følger kun regler. Kan AI'en se, hvad du tegner?",
+        rulesText: "Den følger simple regler.",
         challengesTitle: "Udfordringer",
         challengeSun: "Tegn en sol",
         challengeHouse: "Tegn et hus",
@@ -296,14 +296,6 @@ const translations = {
         reasonDefaultFallback: "Bruger standardklassen som fallback",
     }
 };
-
-translations.en.rulesText = "It follows simple rules.";
-translations.en.classifierText = "It spots patterns in pictures.";
-translations.en.chatbotText = "It talks like it understands.";
-
-translations.da.rulesText = "Den fÃ¸lger simple regler.";
-translations.da.classifierText = "Den finder mÃ¸nstre i billeder.";
-translations.da.chatbotText = "Den taler, som om den forstÃ¥r.";
 
 let currentLang = localStorage.getItem("lang") || "en";
 
