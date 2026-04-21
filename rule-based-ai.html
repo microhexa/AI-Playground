@@ -16,59 +16,54 @@
     </div>
 
     <main id="rule-based-ai-shell" class="focus rule-quiz-shell">
-      <section class="rule-column answer-column" aria-labelledby="answer-panel-title">
-        <p class="rule-column-kicker" data-i18n="rulesYourGuessKicker">Your guess</p>
-        <h2 id="answer-panel-title" data-i18n="rulesQuestionTitle">What is the drawing?</h2>
-        <p class="rule-column-helper" data-i18n="rulesQuestionHelper">Choose the answer you think fits best.</p>
-
-        <div class="answer-options" role="list">
-          <button class="answer-option" type="button" data-answer="labelSun" data-i18n="labelSun">Sun</button>
-          <button class="answer-option" type="button" data-answer="labelHouse" data-i18n="labelHouse">House</button>
-          <button class="answer-option" type="button" data-answer="labelFish" data-i18n="labelFish">Fish</button>
-        </div>
-
-        <p id="player-status" class="player-status" data-i18n="rulesPlayerWaiting">Make your choice before the AI reveals its answer.</p>
-      </section>
-
-      <section class="rule-column stage-column" aria-labelledby="stage-panel-title">
-        <h2 id="stage-panel-title" class="sr-only">Drawing</h2>
-        <div class="stage-frame">
-          <canvas id="quiz-doodle" width="320" height="320" aria-label="Doodle to classify"></canvas>
-          <div class="countdown-meter" aria-hidden="true">
-            <div class="countdown-track">
-              <div id="countdown-fill" class="countdown-fill"></div>
+      <section class="rule-stage" aria-labelledby="answer-panel-title">
+        <p class="rule-progress" id="rule-progress">1 / 10</p>
+        <h2 id="answer-panel-title" class="rule-question" data-i18n="rulesPredictionQuestion">What will the AI choose?</h2>
+        <p class="rule-column-helper" id="rule-helper" data-i18n="rulesPredictionHelper">Pick the label you think the AI will choose for this drawing.</p>
+        <div class="rule-play-area">
+          <div class="rule-canvas-shell">
+            <canvas id="quiz-doodle" width="320" height="320" aria-label="Doodle to classify"></canvas>
+            <div class="rule-ai-spoiler" aria-live="polite">
+              <span class="rule-ai-spoiler-label">AI:</span>
+              <span id="ai-answer-spoiler" class="rule-ai-spoiler-value is-concealed">Hidden for now</span>
             </div>
           </div>
+          <div class="answer-options" role="list">
+            <button class="answer-option" type="button" data-answer="labelSun" data-i18n="labelSun">Sun</button>
+            <button class="answer-option" type="button" data-answer="labelHouse" data-i18n="labelHouse">House</button>
+            <button class="answer-option" type="button" data-answer="labelFish" data-i18n="labelFish">Fish</button>
+          </div>
+        </div>
+        <section id="rule-reveal" class="rule-reveal" hidden aria-live="polite">
+          <div class="rule-reveal-chips">
+            <button id="rules-reveal-chip" class="rule-reveal-chip" type="button">0 rules used</button>
+          </div>
+          <div id="rules-reveal-panel" class="rule-reveal-card" hidden>
+            <div class="rule-reveal-row">
+              <span class="rule-reveal-label" data-i18n="rulesYouAnswered">You answered</span>
+              <span id="player-answer-value" class="rule-reveal-value">-</span>
+            </div>
+            <p id="player-status" class="player-status">-</p>
+            <ul id="rules-applied-list" class="rules-applied-list"></ul>
+          </div>
           <button id="next-round-btn" class="next-round-btn" type="button" hidden data-i18n="rulesNextRound">Next drawing</button>
-        </div>
+        </section>
+        <section id="rule-final-question" class="rule-final-question" hidden aria-live="polite">
+          <h3 class="rule-final-title" data-i18n="rulesFinalQuestion">How does this AI make decisions?</h3>
+          <div class="answer-options answer-options-final" role="list">
+            <button class="answer-option final-answer-option" type="button" data-final-answer="understands" data-i18n="rulesFinalOptionUnderstand">It understands what a house is</button>
+            <button class="answer-option final-answer-option" type="button" data-final-answer="shapes" data-i18n="rulesFinalOptionShapes">It checks for specific shapes</button>
+            <button class="answer-option final-answer-option" type="button" data-final-answer="random" data-i18n="rulesFinalOptionRandom">It guesses randomly</button>
+          </div>
+          <p id="rule-final-feedback" class="rule-final-feedback"></p>
+        </section>
       </section>
-
-      <aside class="rule-column ai-column" aria-labelledby="ai-panel-title">
-        <p class="rule-column-kicker" data-i18n="rulesAiKicker">AI answer</p>
-        <h2 id="ai-panel-title" data-i18n="rulesAiTitle">The AI has already decided.</h2>
-        <p id="ai-status" class="rule-column-helper" data-i18n="rulesAiWaiting">It is waiting for your answer before it reveals what it thinks.</p>
-
-        <div class="ai-answer-card">
-          <div class="ai-answer-label" data-i18n="detectedTitle">Detected:</div>
-          <div id="ai-answer-value" class="ai-answer-value" data-i18n="rulesAiHidden">Hidden for now</div>
-        </div>
-
-        <div class="result-comparison">
-          <div class="comparison-block">
-            <span class="comparison-label" data-i18n="rulesYouAnswered">You answered</span>
-            <span id="player-answer-value" class="comparison-value">-</span>
-          </div>
-          <div class="comparison-block">
-            <span class="comparison-label" data-i18n="rulesAiAnswered">The AI answered</span>
-            <span id="ai-answer-repeat" class="comparison-value">-</span>
-          </div>
-        </div>
-      </aside>
     </main>
   </div>
 
   <script src="scripts/translations.js"></script>
   <script src="scripts/script.js"></script>
+  <script src="scripts/rule-based-ai-samples.js"></script>
   <script src="scripts/rule-based-ai.js"></script>
 </body>
 </html>

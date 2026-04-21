@@ -8,16 +8,11 @@
   <link rel="stylesheet" href="./styles/main.css">
   <link rel="stylesheet" href="./styles/image-classifier.css">
 </head>
-<body>
-  <div class="page">
-    <div class="header">
-      <div class="header-left">
-        <button id="return-btn" class="arrow-btn">
-          <span class="arrow">&larr;</span>
-        </button>
-      </div>
-      <h1></h1>
-      <div class="header-right"></div>
+<body class="image-classifier-page">
+  <div class="page image-classifier-layout">
+    <button id="return-btn" class="level-back-button classifier-return-button" type="button" data-i18n="menuBack">Back</button>
+    <div class="classifier-page-title">
+      <h1 data-i18n="imageClassifierRoomTitle">Image classifier</h1>
     </div>
 
     <div id="training-popup" class="popup hidden" aria-hidden="true">
@@ -51,7 +46,6 @@
     </div>
 
     <div id="image-classifier-room" class="focus tabs-shell">
-      <h1 class="panel-title" data-i18n="imageClassifierRoomTitle">Billedklassifikator</h1>
       <div id="classifier-tab-bar" class="tab-bar" role="tablist" aria-label="Trin i billedklassifikatoren">
         <button id="training-tab" class="tab-btn active" type="button" role="tab" aria-selected="true" aria-controls="training-panel" data-i18n="imageClassifierTrainingTab">TrÃ¦ning</button>
         <button id="testing-tab" class="tab-btn" type="button" role="tab" aria-selected="false" aria-controls="testing-panel" data-i18n="imageClassifierTestingTab" disabled>Test</button>

@@ -1,32 +1,101 @@
-const quizCanvas = document.getElementById("quiz-doodle");
+(() => {
+const ruleQuizCanvas = document.getElementById("quiz-doodle");
 
-if (quizCanvas) {
-  const quizCtx = quizCanvas.getContext("2d");
-  const answerButtons = Array.from(document.querySelectorAll(".answer-option"));
+if (ruleQuizCanvas) {
+  const quizCtx = ruleQuizCanvas.getContext("2d");
+  const answerButtons = Array.from(document.querySelectorAll(".answer-option[data-answer]"));
+  const finalAnswerButtons = Array.from(document.querySelectorAll(".final-answer-option"));
+  const ruleProgressEl = document.getElementById("rule-progress");
+  const ruleQuestionEl = document.getElementById("answer-panel-title");
+  const ruleHelperEl = document.getElementById("rule-helper");
   const playerStatusEl = document.getElementById("player-status");
-  const aiStatusEl = document.getElementById("ai-status");
-  const aiAnswerValueEl = document.getElementById("ai-answer-value");
+  const aiAnswerSpoilerEl = document.getElementById("ai-answer-spoiler");
   const playerAnswerValueEl = document.getElementById("player-answer-value");
-  const aiAnswerRepeatEl = document.getElementById("ai-answer-repeat");
-  const countdownFillEl = document.getElementById("countdown-fill");
+  const rulesAppliedListEl = document.getElementById("rules-applied-list");
+  const rulesRevealChipEl = document.getElementById("rules-reveal-chip");
+  const rulesRevealPanelEl = document.getElementById("rules-reveal-panel");
   const nextRoundBtn = document.getElementById("next-round-btn");
+  const revealSection = document.getElementById("rule-reveal");
+  const finalQuestionSection = document.getElementById("rule-final-question");
+  const finalFeedbackEl = document.getElementById("rule-final-feedback");
 
-  const DATASET_LIMIT = 80;
-  const ROUND_DURATION_MS = 7000;
+  const DATASET_LIMIT = 24;
+  const TOTAL_ROUNDS = 10;
+  const FINAL_CORRECT_ANSWER = "shapes";
+  const EMBEDDED_SAMPLES = Array.isArray(window.ruleBasedAiSamples) ? window.ruleBasedAiSamples : [];
+  const JSON_SAMPLE_FILES = [
+    "./images/menu-doodles/bee.json",
+    "./images/menu-doodles/crocodile.json",
+    "./images/menu-doodles/hockey_stick.json",
+    "./images/menu-doodles/the_mona_lisa.json"
+  ];
   const DATASETS = [
     { labelKey: "labelSun", path: "./images/full_binary_sun.bin" },
     { labelKey: "labelHouse", path: "./images/full_binary_house.bin" },
     { labelKey: "labelFish", path: "./images/full_binary_fish.bin" }
   ];
 
-  let samplePool = [];
-  let currentRound = null;
-  let countdownFrameId = null;
-  let roundStartedAt = 0;
-
   const builtInRules = [
     {
+      label: "labelCrocodile",
+      explanationKeys: [
+        "rulesExplainCrocodileWide",
+        "rulesExplainCrocodileDense",
+        "rulesExplainCrocodileMiddle"
+      ],
+      conditions: [
+        { feature: "aspectRatio", op: ">", value: 2.4 },
+        { feature: "density", op: ">", value: 0.3 },
+        { feature: "middleHRatio", op: ">", value: 0.5 }
+      ]
+    },
+    {
+      label: "labelHockeyStick",
+      explanationKeys: [
+        "rulesExplainHockeyStickWide",
+        "rulesExplainHockeyStickSparse",
+        "rulesExplainHockeyStickLeft"
+      ],
+      conditions: [
+        { feature: "aspectRatio", op: ">", value: 1.25 },
+        { feature: "density", op: "<", value: 0.19 },
+        { feature: "leftRatio", op: ">", value: 0.38 }
+      ]
+    },
+    {
+      label: "labelBee",
+      explanationKeys: [
+        "rulesExplainBeeRound",
+        "rulesExplainBeeDense",
+        "rulesExplainBeeMiddle"
+      ],
+      conditions: [
+        { feature: "aspectRatio", op: ">", value: 0.95 },
+        { feature: "aspectRatio", op: "<", value: 1.25 },
+        { feature: "density", op: ">", value: 0.29 },
+        { feature: "middleHRatio", op: ">", value: 0.45 }
+      ]
+    },
+    {
+      label: "labelMonaLisa",
+      explanationKeys: [
+        "rulesExplainMonaLisaTall",
+        "rulesExplainMonaLisaTop",
+        "rulesExplainMonaLisaDense"
+      ],
+      conditions: [
+        { feature: "aspectRatio", op: "<", value: 1.0 },
+        { feature: "topRatio", op: ">", value: 0.3 },
+        { feature: "density", op: ">", value: 0.24 }
+      ]
+    },
+    {
       label: "labelFish",
+      explanationKeys: [
+        "rulesExplainFishWide",
+        "rulesExplainFishMiddle",
+        "rulesExplainFishAsymmetry"
+      ],
       conditions: [
         { feature: "aspectRatio", op: ">", value: 1.2 },
         { feature: "middleHRatio", op: ">", value: 0.45 },
@@ -35,6 +104,12 @@ if (quizCanvas) {
     },
     {
       label: "labelHouse",
+      explanationKeys: [
+        "rulesExplainHouseBottom",
+        "rulesExplainHouseSymmetry",
+        "rulesExplainHouseTall",
+        "rulesExplainHouseDense"
+      ],
       conditions: [
         { feature: "bottomRatio", op: ">", value: 0.30 },
         { feature: "verticalSymmetry", op: ">", value: 0.75 },
@@ -44,6 +119,11 @@ if (quizCanvas) {
     },
     {
       label: "labelSun",
+      explanationKeys: [
+        "rulesExplainSunRound",
+        "rulesExplainSunSymmetry",
+        "rulesExplainSunSparse"
+      ],
       conditions: [
         { feature: "aspectRatio", op: ">", value: 0.85 },
         { feature: "aspectRatio", op: "<", value: 1.3 },
@@ -52,6 +132,26 @@ if (quizCanvas) {
       ]
     }
   ];
+  const supportedLabels = new Set(builtInRules.map(rule => rule.label));
+
+  let samplePool = [];
+  let roundQueue = [];
+  let currentRound = null;
+  let completedRounds = 0;
+  let inFinalQuestion = false;
+  let finalAnswerChoice = null;
+  let openRevealPanel = null;
+  let answerChoicePool = ["labelSun", "labelHouse", "labelFish"];
+
+  function drawCanvasMessage(message) {
+    quizCtx.fillStyle = "#f6f6f6";
+    quizCtx.fillRect(0, 0, ruleQuizCanvas.width, ruleQuizCanvas.height);
+    quizCtx.fillStyle = "#4a4e69";
+    quizCtx.textAlign = "center";
+    quizCtx.textBaseline = "middle";
+    quizCtx.font = "1.4rem Gloria Hallelujah, sans-serif";
+    quizCtx.fillText(message, ruleQuizCanvas.width / 2, ruleQuizCanvas.height / 2);
+  }
 
   function updateDocumentLanguage() {
     document.documentElement.lang = currentLang === "da" ? "da" : "en";
@@ -61,24 +161,32 @@ if (quizCanvas) {
   window.applyRulesTranslations = function applyRulesTranslations() {
     updateDocumentLanguage();
 
+    if (inFinalQuestion) {
+      ruleQuestionEl.textContent = t("rulesFinalQuestion");
+      ruleHelperEl.textContent = t("rulesFinalHelper");
+      if (finalAnswerChoice) {
+        finalFeedbackEl.textContent = finalAnswerChoice === FINAL_CORRECT_ANSWER
+          ? t("rulesFinalCorrect")
+          : t("rulesFinalIncorrect");
+      }
+    } else {
+      ruleQuestionEl.textContent = t("rulesPredictionQuestion");
+      ruleHelperEl.textContent = t("rulesPredictionHelper");
+    }
+
     if (!currentRound) return;
 
     if (currentRound.answered) {
-      playerAnswerValueEl.textContent = currentRound.playerAnswer ? t(currentRound.playerAnswer) : "-";
-      aiAnswerValueEl.textContent = t(currentRound.aiAnswer);
-      aiAnswerRepeatEl.textContent = t(currentRound.aiAnswer);
-      playerStatusEl.textContent = !currentRound.playerAnswer
-        ? t("rulesPlayerTooSlow")
-        : currentRound.playerAnswer === currentRound.aiAnswer
+      playerAnswerValueEl.textContent = t(currentRound.playerAnswer);
+      if (aiAnswerSpoilerEl) {
+        aiAnswerSpoilerEl.textContent = t(currentRound.aiAnswer);
+        aiAnswerSpoilerEl.classList.remove("is-concealed");
+      }
+      playerStatusEl.textContent = currentRound.playerAnswer === currentRound.aiAnswer
         ? t("rulesPlayerMatched")
         : t("rulesPlayerDiffered");
-      aiStatusEl.textContent = t("rulesAiReveal");
-    } else {
-      playerStatusEl.textContent = t("rulesPlayerWaiting");
-      aiStatusEl.textContent = t("rulesAiWaiting");
-      aiAnswerValueEl.textContent = t("rulesAiHidden");
-      playerAnswerValueEl.textContent = "-";
-      aiAnswerRepeatEl.textContent = "-";
+      renderAppliedRules(currentRound.rule);
+      updateRevealChipLabels();
     }
   };
 
@@ -138,13 +246,13 @@ if (quizCanvas) {
     return drawings;
   }
 
-  function drawQuickDraw(drawing) {
-    quizCtx.fillStyle = "#f6f6f6";
-    quizCtx.fillRect(0, 0, quizCanvas.width, quizCanvas.height);
-    quizCtx.strokeStyle = "#1b2631";
-    quizCtx.lineCap = "round";
-    quizCtx.lineJoin = "round";
-    quizCtx.lineWidth = 10;
+  function drawQuickDrawOnContext(ctx, canvas, drawing) {
+    ctx.fillStyle = "#f6f6f6";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = "#1b2631";
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.lineWidth = Math.max(4, Math.round(canvas.width * 0.03125));
 
     const points = [];
     drawing.forEach(stroke => {
@@ -161,32 +269,36 @@ if (quizCanvas) {
     const maxY = Math.max(...points.map(point => point.y));
     const boxWidth = Math.max(1, maxX - minX);
     const boxHeight = Math.max(1, maxY - minY);
-    const padding = 34;
+    const padding = Math.round(canvas.width * 0.10625);
     const scale = Math.min(
-      (quizCanvas.width - padding * 2) / boxWidth,
-      (quizCanvas.height - padding * 2) / boxHeight
+      (canvas.width - padding * 2) / boxWidth,
+      (canvas.height - padding * 2) / boxHeight
     );
-    const offsetX = (quizCanvas.width - boxWidth * scale) / 2;
-    const offsetY = (quizCanvas.height - boxHeight * scale) / 2;
+    const offsetX = (canvas.width - boxWidth * scale) / 2;
+    const offsetY = (canvas.height - boxHeight * scale) / 2;
 
     drawing.forEach(stroke => {
       if (!stroke.xs.length) return;
 
-      quizCtx.beginPath();
-      quizCtx.moveTo(
+      ctx.beginPath();
+      ctx.moveTo(
         offsetX + (stroke.xs[0] - minX) * scale,
         offsetY + (stroke.ys[0] - minY) * scale
       );
 
       for (let index = 1; index < stroke.xs.length; index++) {
-        quizCtx.lineTo(
+        ctx.lineTo(
           offsetX + (stroke.xs[index] - minX) * scale,
           offsetY + (stroke.ys[index] - minY) * scale
         );
       }
 
-      quizCtx.stroke();
+      ctx.stroke();
     });
+  }
+
+  function drawQuickDraw(drawing) {
+    drawQuickDrawOnContext(quizCtx, ruleQuizCanvas, drawing);
   }
 
   function normalizeCanvas(sourceCtx, width, height, targetSize = 64) {
@@ -269,11 +381,10 @@ if (quizCanvas) {
     const boxWidth = maxX - minX + 1;
     const boxHeight = maxY - minY + 1;
 
-    let top = 0;
     let middleH = 0;
+    let top = 0;
     let bottom = 0;
     let left = 0;
-    let middleV = 0;
     let right = 0;
 
     for (const point of inkPixels) {
@@ -282,8 +393,7 @@ if (quizCanvas) {
       else bottom++;
 
       if (point.x < width / 3) left++;
-      else if (point.x < 2 * width / 3) middleV++;
-      else right++;
+      else if (point.x >= 2 * width / 3) right++;
     }
 
     const binary = Array.from({ length: height }, () => Array(width).fill(0));
@@ -303,10 +413,19 @@ if (quizCanvas) {
 
     return {
       empty: false,
+      minX,
+      maxX,
+      minY,
+      maxY,
+      boxWidth,
+      boxHeight,
       aspectRatio: boxWidth / boxHeight,
       density: inkPixels.length / (boxWidth * boxHeight),
+      topRatio: top / inkPixels.length,
       middleHRatio: middleH / inkPixels.length,
       bottomRatio: bottom / inkPixels.length,
+      leftRatio: left / inkPixels.length,
+      rightRatio: right / inkPixels.length,
       verticalSymmetry: verticalMatches / verticalChecks
     };
   }
@@ -319,97 +438,346 @@ if (quizCanvas) {
   }
 
   function classifyByRules(features) {
-    if (features.empty) return "labelNothing";
+    if (features.empty) {
+      return { label: "labelNothing", rule: null };
+    }
 
     for (const rule of builtInRules) {
       if (rule.conditions.every(condition => evaluateCondition(features, condition))) {
-        return rule.label;
+        return { label: rule.label, rule };
       }
     }
 
-    return "labelUnknown";
+    return { label: "labelUnknown", rule: null };
+  }
+
+  function convertTimedStrokeDrawing(drawing) {
+    if (!Array.isArray(drawing)) return [];
+
+    return drawing
+      .map(stroke => {
+        if (!Array.isArray(stroke) || stroke.length < 2) return null;
+        const [xs, ys] = stroke;
+        if (!Array.isArray(xs) || !Array.isArray(ys) || !xs.length || !ys.length) return null;
+        return { xs, ys };
+      })
+      .filter(Boolean);
   }
 
   function computeAiAnswer(drawing) {
     drawQuickDraw(drawing);
-    const normalizedCanvas = normalizeCanvas(quizCtx, quizCanvas.width, quizCanvas.height, 64);
+    const normalizedCanvas = normalizeCanvas(quizCtx, ruleQuizCanvas.width, ruleQuizCanvas.height, 64);
     const normalizedCtx = normalizedCanvas.getContext("2d");
     return classifyByRules(extractFeatures(normalizedCtx, 64, 64));
   }
 
-  function setCountdownProgress(progress) {
-    if (!countdownFillEl) return;
-    const clamped = Math.max(0, Math.min(1, progress));
-    countdownFillEl.style.transform = `scaleX(${clamped})`;
-    countdownFillEl.style.opacity = clamped < 0.2 ? "0.72" : "1";
+  function buildConditionText(condition) {
+    if (condition.feature === "aspectRatio" && condition.op === "<") {
+      return t("ruleOptionTall");
+    }
+
+    if (condition.feature === "aspectRatio" && condition.op === ">") {
+      return condition.value > 1.5 ? t("ruleOptionWide") : t("ruleOptionRound");
+    }
+
+    if (condition.feature === "middleHRatio") {
+      return t("ruleOptionMiddle");
+    }
+
+    if (condition.feature === "topRatio") {
+      return t("ruleOptionTop");
+    }
+
+    if (condition.feature === "bottomRatio") {
+      return t("ruleOptionBottom");
+    }
+
+    if (condition.feature === "leftRatio") {
+      return t("ruleOptionLeft");
+    }
+
+    if (condition.feature === "rightRatio") {
+      return t("ruleOptionRight");
+    }
+
+    if (condition.feature === "verticalSymmetry") {
+      return condition.op === ">" ? t("ruleOptionSame") : t("ruleOptionDifferent");
+    }
+
+    if (condition.feature === "density") {
+      return condition.op === ">" ? t("ruleOptionFilled") : t("ruleOptionSparse");
+    }
+
+    return "";
   }
 
-  function stopCountdown() {
-    if (countdownFrameId) {
-      window.cancelAnimationFrame(countdownFrameId);
-      countdownFrameId = null;
+  function createRulePreviewData(drawing, previewSize = 112, featureSize = 64) {
+    const sourceCanvas = document.createElement("canvas");
+    sourceCanvas.width = previewSize;
+    sourceCanvas.height = previewSize;
+    const sourceCtx = sourceCanvas.getContext("2d");
+    drawQuickDrawOnContext(sourceCtx, sourceCanvas, drawing);
+
+    const normalizedCanvas = normalizeCanvas(sourceCtx, previewSize, previewSize, featureSize);
+    const normalizedCtx = normalizedCanvas.getContext("2d");
+    const features = extractFeatures(normalizedCtx, featureSize, featureSize);
+
+    return {
+      normalizedCanvas,
+      features,
+      featureSize
+    };
+  }
+
+  function createRuleVisualizationCanvas(condition, previewData) {
+    const canvas = document.createElement("canvas");
+    canvas.width = 112;
+    canvas.height = 112;
+    canvas.className = "rule-condition-canvas";
+
+    const ctx = canvas.getContext("2d");
+    const { normalizedCanvas, features, featureSize } = previewData;
+    const scale = canvas.width / featureSize;
+    const bboxX = features.minX * scale;
+    const bboxY = features.minY * scale;
+    const bboxWidth = Math.max(1, features.boxWidth * scale);
+    const bboxHeight = Math.max(1, features.boxHeight * scale);
+
+    ctx.fillStyle = "#f6f6f6";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(normalizedCanvas, 0, 0, canvas.width, canvas.height);
+
+    const highlight = "rgba(249, 199, 79, 0.26)";
+    const outline = "#f3722c";
+    const inkOutline = "#4a4e69";
+
+    if (condition.feature === "topRatio") {
+      ctx.fillStyle = highlight;
+      ctx.fillRect(0, 0, canvas.width, canvas.height / 3);
+    } else if (condition.feature === "middleHRatio") {
+      ctx.fillStyle = highlight;
+      ctx.fillRect(0, canvas.height / 3, canvas.width, canvas.height / 3);
+    } else if (condition.feature === "bottomRatio") {
+      ctx.fillStyle = highlight;
+      ctx.fillRect(0, (canvas.height / 3) * 2, canvas.width, canvas.height / 3);
+    } else if (condition.feature === "leftRatio") {
+      ctx.fillStyle = highlight;
+      ctx.fillRect(0, 0, canvas.width / 3, canvas.height);
+    } else if (condition.feature === "rightRatio") {
+      ctx.fillStyle = highlight;
+      ctx.fillRect((canvas.width / 3) * 2, 0, canvas.width / 3, canvas.height);
+    } else if (condition.feature === "verticalSymmetry") {
+      ctx.strokeStyle = outline;
+      ctx.setLineDash([7, 6]);
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(canvas.width / 2, 10);
+      ctx.lineTo(canvas.width / 2, canvas.height - 10);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    } else if (condition.feature === "density") {
+      ctx.fillStyle = condition.op === ">" ? "rgba(249, 175, 175, 0.24)" : "rgba(249, 199, 79, 0.18)";
+      ctx.fillRect(bboxX, bboxY, bboxWidth, bboxHeight);
+    } else if (condition.feature === "aspectRatio") {
+      const squareSide = Math.min(bboxHeight, bboxWidth, canvas.width * 0.72);
+      const squareX = bboxX + (bboxWidth - squareSide) / 2;
+      const squareY = bboxY + (bboxHeight - squareSide) / 2;
+      ctx.fillStyle = "rgba(249, 199, 79, 0.18)";
+      ctx.fillRect(squareX, squareY, squareSide, squareSide);
+      ctx.strokeStyle = outline;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 5]);
+      ctx.strokeRect(squareX, squareY, squareSide, squareSide);
+      ctx.setLineDash([]);
+    }
+
+    ctx.strokeStyle = inkOutline;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(bboxX, bboxY, bboxWidth, bboxHeight);
+
+    return canvas;
+  }
+
+  function renderAppliedRules(rule) {
+    if (!rulesAppliedListEl) return;
+
+    rulesAppliedListEl.innerHTML = "";
+
+    if (!rule) {
+      const fallbackItem = document.createElement("li");
+      fallbackItem.textContent = t("rulesExplainFallback");
+      rulesAppliedListEl.appendChild(fallbackItem);
+      return;
+    }
+
+    const previewData = currentRound?.sample?.drawing
+      ? createRulePreviewData(currentRound.sample.drawing)
+      : null;
+
+    rule.conditions.forEach((condition, index) => {
+      const item = document.createElement("li");
+      item.className = "rule-condition-item";
+
+      const visualization = previewData
+        ? createRuleVisualizationCanvas(condition, previewData)
+        : null;
+
+      const body = document.createElement("div");
+      body.className = "rule-condition-body";
+
+      const text = document.createElement("p");
+      text.className = "rule-condition-text";
+      text.textContent = rule.explanationKeys[index]
+        ? t(rule.explanationKeys[index])
+        : buildConditionText(condition);
+
+      const helper = document.createElement("p");
+      helper.className = "rule-condition-helper";
+      helper.textContent = buildConditionText(condition);
+
+      if (visualization) {
+        item.appendChild(visualization);
+      }
+
+      body.appendChild(text);
+      if (helper.textContent) {
+        body.appendChild(helper);
+      }
+      item.appendChild(body);
+      rulesAppliedListEl.appendChild(item);
+    });
+  }
+
+  function updateRevealChipLabels() {
+    if (rulesRevealChipEl) {
+      const ruleCount = currentRound?.rule?.explanationKeys?.length || 0;
+      const countLabel = ruleCount === 1 ? t("rulesRevealRuleUsedSingular") : t("rulesRevealRuleUsedPlural");
+      rulesRevealChipEl.textContent = `${ruleCount} ${countLabel}`;
     }
   }
 
-  function startCountdown() {
-    stopCountdown();
-    roundStartedAt = Date.now();
-    setCountdownProgress(1);
+  function updateRevealPanels() {
+    const showRulesPanel = openRevealPanel === "rules";
 
-    const tick = () => {
-      if (!currentRound || currentRound.answered) {
-        stopCountdown();
+    if (rulesRevealPanelEl) rulesRevealPanelEl.hidden = !showRulesPanel;
+    if (rulesRevealChipEl) rulesRevealChipEl.classList.toggle("is-open", showRulesPanel);
+  }
+
+  function toggleRevealPanel(panel) {
+    openRevealPanel = openRevealPanel === panel ? null : panel;
+    updateRevealPanels();
+  }
+
+  function updateProgress() {
+    if (!ruleProgressEl) return;
+    ruleProgressEl.textContent = `${Math.min(completedRounds + 1, TOTAL_ROUNDS)} / ${TOTAL_ROUNDS}`;
+  }
+
+  function setRoundAnswerChoices(correctAnswer) {
+    const distractors = shuffle(answerChoicePool.filter(choice => choice !== correctAnswer));
+    const selectedChoices = shuffle([correctAnswer, ...distractors.slice(0, Math.max(0, answerButtons.length - 1))]);
+
+    answerButtons.forEach((button, index) => {
+      const answerKey = selectedChoices[index];
+      if (!answerKey) {
+        button.hidden = true;
+        button.disabled = true;
+        button.removeAttribute("data-answer");
+        button.removeAttribute("data-i18n");
+        button.textContent = "";
         return;
       }
 
-      const elapsed = Date.now() - roundStartedAt;
-      const remainingRatio = 1 - elapsed / ROUND_DURATION_MS;
-      setCountdownProgress(remainingRatio);
-
-      if (elapsed >= ROUND_DURATION_MS) {
-        revealRound(null);
-        return;
-      }
-
-      countdownFrameId = window.requestAnimationFrame(tick);
-    };
-
-    countdownFrameId = window.requestAnimationFrame(tick);
+      button.hidden = false;
+      button.disabled = false;
+      button.dataset.answer = answerKey;
+      button.dataset.i18n = answerKey;
+      button.textContent = t(answerKey);
+    });
   }
 
   function resetRoundUi() {
     answerButtons.forEach(button => {
       button.disabled = false;
+      button.hidden = false;
       button.classList.remove("selected", "correct", "incorrect");
     });
-    playerStatusEl.textContent = t("rulesPlayerWaiting");
-    aiStatusEl.textContent = t("rulesAiWaiting");
-    aiAnswerValueEl.textContent = t("rulesAiHidden");
-    playerAnswerValueEl.textContent = "-";
-    aiAnswerRepeatEl.textContent = "-";
-    nextRoundBtn.hidden = true;
-    setCountdownProgress(1);
+
+    if (revealSection) revealSection.hidden = true;
+    if (finalQuestionSection) finalQuestionSection.hidden = true;
+    if (nextRoundBtn) nextRoundBtn.hidden = true;
+    if (rulesAppliedListEl) rulesAppliedListEl.innerHTML = "";
+    if (playerStatusEl) playerStatusEl.textContent = "";
+    if (playerAnswerValueEl) playerAnswerValueEl.textContent = "-";
+    if (aiAnswerSpoilerEl) {
+      aiAnswerSpoilerEl.textContent = t("rulesAiHidden");
+      aiAnswerSpoilerEl.classList.add("is-concealed");
+    }
+    if (rulesRevealChipEl) rulesRevealChipEl.textContent = `0 ${t("rulesRevealRuleUsedPlural")}`;
+    openRevealPanel = null;
+    updateRevealPanels();
   }
 
-  function chooseRandomSample() {
-    const index = Math.floor(Math.random() * samplePool.length);
-    return samplePool[index];
+  function setAnswerButtonsEnabled(enabled) {
+    answerButtons.forEach(button => {
+      button.disabled = !enabled;
+    });
+  }
+
+  function shuffle(array) {
+    const copy = [...array];
+    for (let index = copy.length - 1; index > 0; index--) {
+      const swapIndex = Math.floor(Math.random() * (index + 1));
+      [copy[index], copy[swapIndex]] = [copy[swapIndex], copy[index]];
+    }
+    return copy;
+  }
+
+  function buildRoundQueue() {
+    const grouped = new Map();
+    samplePool.forEach(sample => {
+      if (!grouped.has(sample.labelKey)) grouped.set(sample.labelKey, []);
+      grouped.get(sample.labelKey).push(sample);
+    });
+
+    const queue = [];
+    const labelKeys = shuffle([...grouped.keys()]);
+
+    labelKeys.forEach(labelKey => {
+      const samples = shuffle(grouped.get(labelKey) || []);
+      if (samples.length) queue.push(samples[0]);
+    });
+
+    const leftovers = shuffle(samplePool.filter(sample => !queue.includes(sample)));
+    while (queue.length < TOTAL_ROUNDS && leftovers.length) {
+      queue.push(leftovers.shift());
+    }
+
+    return queue.slice(0, TOTAL_ROUNDS);
   }
 
   function beginRound() {
-    if (!samplePool.length) return;
+    if (!roundQueue.length) {
+      showFinalQuestion();
+      return;
+    }
 
-    const sample = chooseRandomSample();
+    inFinalQuestion = false;
+    updateProgress();
+    resetRoundUi();
     currentRound = {
-      sample,
-      aiAnswer: sample.aiAnswer,
+      sample: roundQueue.shift(),
+      aiAnswer: null,
+      rule: null,
       playerAnswer: null,
       answered: false
     };
+    currentRound.aiAnswer = currentRound.sample.aiAnswer;
+    currentRound.rule = currentRound.sample.rule;
 
-    drawQuickDraw(sample.drawing);
-    resetRoundUi();
-    startCountdown();
+    setRoundAnswerChoices(currentRound.aiAnswer);
+    setAnswerButtonsEnabled(true);
+    drawQuickDraw(currentRound.sample.drawing);
   }
 
   function revealRound(playerAnswer) {
@@ -417,7 +785,6 @@ if (quizCanvas) {
 
     currentRound.playerAnswer = playerAnswer;
     currentRound.answered = true;
-    stopCountdown();
 
     answerButtons.forEach(button => {
       button.disabled = true;
@@ -427,19 +794,108 @@ if (quizCanvas) {
       button.classList.toggle("incorrect", answerKey === playerAnswer && playerAnswer !== currentRound.aiAnswer);
     });
 
-    playerAnswerValueEl.textContent = playerAnswer ? t(playerAnswer) : "-";
-    aiAnswerValueEl.textContent = t(currentRound.aiAnswer);
-    aiAnswerRepeatEl.textContent = t(currentRound.aiAnswer);
-    aiStatusEl.textContent = t("rulesAiReveal");
-    playerStatusEl.textContent = !playerAnswer
-      ? t("rulesPlayerTooSlow")
-      : playerAnswer === currentRound.aiAnswer
+    playerAnswerValueEl.textContent = t(playerAnswer);
+    if (aiAnswerSpoilerEl) {
+      aiAnswerSpoilerEl.textContent = t(currentRound.aiAnswer);
+      aiAnswerSpoilerEl.classList.remove("is-concealed");
+    }
+    playerStatusEl.textContent = playerAnswer === currentRound.aiAnswer
       ? t("rulesPlayerMatched")
       : t("rulesPlayerDiffered");
+    renderAppliedRules(currentRound.rule);
+    updateRevealChipLabels();
+    revealSection.hidden = false;
+    completedRounds += 1;
     nextRoundBtn.hidden = false;
+    nextRoundBtn.textContent = completedRounds >= TOTAL_ROUNDS ? t("rulesToFinalQuestion") : t("rulesNextRound");
+  }
+
+  function showFinalQuestion() {
+    inFinalQuestion = true;
+    currentRound = null;
+    if (ruleProgressEl) ruleProgressEl.textContent = `${TOTAL_ROUNDS} / ${TOTAL_ROUNDS}`;
+    if (ruleQuestionEl) ruleQuestionEl.textContent = t("rulesFinalQuestion");
+    if (ruleHelperEl) ruleHelperEl.textContent = t("rulesFinalHelper");
+    answerButtons.forEach(button => {
+      button.hidden = true;
+    });
+    revealSection.hidden = true;
+    finalQuestionSection.hidden = false;
+    finalAnswerChoice = null;
+    finalFeedbackEl.textContent = "";
+    finalAnswerButtons.forEach(button => {
+      button.disabled = false;
+      button.classList.remove("selected", "correct", "incorrect");
+    });
+  }
+
+  function handleFinalAnswer(answer) {
+    finalAnswerChoice = answer;
+    finalAnswerButtons.forEach(button => {
+      button.disabled = true;
+      const isChosen = button.dataset.finalAnswer === answer;
+      const isCorrect = button.dataset.finalAnswer === FINAL_CORRECT_ANSWER;
+      button.classList.toggle("selected", isChosen);
+      button.classList.toggle("correct", isCorrect);
+      button.classList.toggle("incorrect", isChosen && !isCorrect);
+    });
+
+    finalFeedbackEl.textContent = answer === FINAL_CORRECT_ANSWER
+      ? t("rulesFinalCorrect")
+      : t("rulesFinalIncorrect");
+  }
+
+  async function loadJsonSamples() {
+    const loaded = await Promise.all(JSON_SAMPLE_FILES.map(async path => {
+      try {
+        const response = await fetch(path);
+        if (!response.ok) return [];
+
+        const payload = await response.json();
+        const drawings = Array.isArray(payload?.drawings) ? payload.drawings : [];
+
+        return drawings.map(entry => {
+          const drawing = convertTimedStrokeDrawing(entry.drawing);
+          if (!drawing.length) return null;
+
+          const result = computeAiAnswer(drawing);
+          return {
+            labelKey: result.label,
+            drawing,
+            aiAnswer: result.label,
+            rule: result.rule,
+            sourceWord: entry.word || payload.source_file || path
+          };
+        }).filter(Boolean);
+      } catch {
+        return [];
+      }
+    }));
+
+    return loaded
+      .flat()
+      .filter(sample => supportedLabels.has(sample.aiAnswer));
   }
 
   async function loadSamples() {
+    const embeddedSamples = EMBEDDED_SAMPLES.map(sample => {
+        const result = computeAiAnswer(sample.drawing);
+        return {
+          labelKey: result.label,
+          drawing: sample.drawing,
+          aiAnswer: result.label,
+          rule: result.rule
+        };
+      }).filter(sample => supportedLabels.has(sample.aiAnswer));
+
+    const jsonSamples = await loadJsonSamples();
+    samplePool = [...embeddedSamples, ...jsonSamples];
+    answerChoicePool = [...new Set(samplePool.map(sample => sample.aiAnswer).filter(Boolean))];
+
+    if (samplePool.length) {
+      return;
+    }
+
     const loaded = await Promise.all(DATASETS.map(async dataset => {
       const response = await fetch(dataset.path);
       if (!response.ok) return [];
@@ -447,38 +903,62 @@ if (quizCanvas) {
       const buffer = await response.arrayBuffer();
       const drawings = parseQuickDrawBinary(buffer, DATASET_LIMIT);
 
-      return drawings.map(drawing => ({
-        labelKey: dataset.labelKey,
-        drawing,
-        aiAnswer: null
-      }));
+      return drawings.map(drawing => {
+        const result = computeAiAnswer(drawing);
+        return {
+          labelKey: dataset.labelKey,
+          drawing,
+          aiAnswer: result.label,
+          rule: result.rule
+        };
+      });
     }));
 
-    samplePool = loaded.flat();
-
-    samplePool.forEach(sample => {
-      sample.aiAnswer = computeAiAnswer(sample.drawing);
-    });
+    samplePool = loaded
+      .flat()
+      .filter(sample => supportedLabels.has(sample.aiAnswer));
+    answerChoicePool = [...new Set(samplePool.map(sample => sample.aiAnswer).filter(Boolean))];
   }
 
   answerButtons.forEach(button => {
     button.addEventListener("click", () => revealRound(button.dataset.answer));
   });
 
-  nextRoundBtn.addEventListener("click", beginRound);
+  finalAnswerButtons.forEach(button => {
+    button.addEventListener("click", () => handleFinalAnswer(button.dataset.finalAnswer));
+  });
+
+  if (rulesRevealChipEl) {
+    rulesRevealChipEl.addEventListener("click", () => toggleRevealPanel("rules"));
+  }
+
+  nextRoundBtn.addEventListener("click", () => {
+    if (completedRounds >= TOTAL_ROUNDS) {
+      showFinalQuestion();
+      return;
+    }
+    beginRound();
+  });
 
   updateDocumentLanguage();
   applyTranslations();
+  setAnswerButtonsEnabled(false);
+  drawCanvasMessage("Loading...");
 
   loadSamples()
     .then(() => {
       if (!samplePool.length) {
-        aiStatusEl.textContent = "Could not load drawings.";
+        if (ruleHelperEl) ruleHelperEl.textContent = "Could not load drawings.";
+        drawCanvasMessage("No drawings");
         return;
       }
+
+      roundQueue = buildRoundQueue();
       beginRound();
     })
     .catch(() => {
-      aiStatusEl.textContent = "Could not load drawings.";
+      if (ruleHelperEl) ruleHelperEl.textContent = "Could not load drawings.";
+      drawCanvasMessage("Load failed");
     });
 }
+})();
