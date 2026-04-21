@@ -10,7 +10,32 @@
 
 body {
     margin: 0;
-    background: whitesmoke;
+    background: #f8c291;
     font-family: Gloria Hallelujah, sans-serif;
-    color: #131313;
+    color: #1b2631;
+    --color-ink: #1b2631;
+    --color-muted: #F3722C;
+    --color-blush: #F8961E;
+    --color-surface: #F9C74F;
+    --color-warm: #F8961E;
+    --color-border: #F3722C;
+    --color-panel: rgba(249, 199, 79, 0.3);
+    --color-panel-soft: rgba(249, 65, 68, 0.14);
+    --color-shadow: rgba(243, 114, 44, 0.22);
+}
+
+.home-page {
+    background: #f8c291;
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
 }

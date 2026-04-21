@@ -5,11 +5,11 @@ button {
     padding: 10px 18px;
     font-size: 1.8rem;
     line-height: 1.2;
-    border: #131313 solid 2px;
+    border: var(--color-border) solid 2px;
     border-radius: 10px;
     cursor: pointer;
-    background: #975aa3;
-    color: white;
+    background: var(--color-muted);
+    color: var(--color-surface);
     transition: transform 150ms ease, box-shadow 150ms ease;
     transform-origin: center center;
     will-change: transform, box-shadow;
@@ -21,7 +21,7 @@ button {
 
 button:hover {
     transform: translateY(-1px);
-    box-shadow: 0 6px 14px rgba(0,0,0,0.15);
+    box-shadow: 0 6px 14px rgba(243, 114, 44, 0.24);
 }
 
 #reset-btn,
@@ -87,7 +87,8 @@ button svg {
 }
 
 button.crit {
-    background: #d83333;
+    background: var(--color-blush);
+    color: #F9C74F;
 }
 
 #reset-btn svg {
@@ -98,7 +99,7 @@ button.crit {
 #undo-btn:disabled:hover,
 #redo-btn:disabled,
 #redo-btn:disabled:hover {
-    background: #a6a6a6;
+    background: rgba(243, 114, 44, 0.38);
     cursor: not-allowed;
     box-shadow: none;
     transform: none;
@@ -122,7 +123,8 @@ button.crit {
 }
 
 #add-rule-btn {
-    background: #29ac29;
+    background: var(--color-warm);
+    color: var(--color-ink);
     font-size: 2.5rem;
     margin-top: 12px;
 }

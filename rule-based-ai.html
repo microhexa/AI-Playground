@@ -8,127 +8,71 @@
   <link rel="stylesheet" href="./styles/main.css">
   <link rel="stylesheet" href="./styles/rule-based-ai.css">
 </head>
-<body>
-  <div class="page rule-page">
-    <div class="header">
-        <div class="header-left">
-            <button id="return-btn" class="arrow-btn">
-                <span class="arrow">&larr;</span>
-            </button>
-        </div>
-        <h1></h1>
-        <div class="header-right"></div>
+<body class="rule-quiz-body">
+  <div class="page rule-page rule-quiz-page">
+    <div class="header rule-quiz-header">
+      <div class="header-left">
+        <button id="return-btn" class="arrow-btn">
+          <span class="arrow">&larr;</span>
+        </button>
+      </div>
+      <h1 data-i18n="rulesTitle">Rule-based AI</h1>
+      <div class="header-right"></div>
     </div>
-    <div id="rules-popup" class="popup hidden">
-        <div class="popup-content">
-            <button id="close-rules-btn"><div>X</div></button>
-            <h2 id="rules-popup-title" data-i18n="rulesPopupTitle">Rules</h2>
-            <div class="rules-popup-body">
-                <div id="rules-list"></div>
-                <div id="rule-builder" class="rule-builder hidden">
-                    <h3 id="rule-builder-title">Make your own rule</h3>
 
-                    <label>
-                        <span id="new-rule-label-text">Name your label:</span>
-                        <input type="text" id="new-rule-name" maxlength="20" placeholder="e.g. Rocket">
-                    </label>
+    <main id="rule-based-ai-shell" class="focus rule-quiz-shell">
+      <section class="rule-column answer-column" aria-labelledby="answer-panel-title">
+        <p class="rule-column-kicker" data-i18n="rulesYourGuessKicker">Your guess</p>
+        <h2 id="answer-panel-title" data-i18n="rulesQuestionTitle">What is the drawing?</h2>
+        <p class="rule-column-helper" data-i18n="rulesQuestionHelper">Choose the answer you think fits best.</p>
 
-                    <div id="rule-builder-blocks"></div>
+        <div class="answer-options" role="list">
+          <button class="answer-option" type="button" data-answer="labelSun" data-i18n="labelSun">Sun</button>
+          <button class="answer-option" type="button" data-answer="labelHouse" data-i18n="labelHouse">House</button>
+          <button class="answer-option" type="button" data-answer="labelFish" data-i18n="labelFish">Fish</button>
+        </div>
 
-                    <div class="rule-builder-actions">
-                        <button id="save-rule-btn" aria-label="Save"><strong>&check;</strong></button>
-                        <button id="cancel-rule-btn" class="crit" aria-label="Cancel"><div>X</div></button>
-                    </div>
-                </div>
-            </div>
-            <button id="add-rule-btn"><div>+</div></button>
+        <p id="player-status" class="player-status" data-i18n="rulesPlayerWaiting">Make your choice before the AI reveals its answer.</p>
+      </section>
+
+      <section class="rule-column stage-column" aria-labelledby="stage-panel-title">
+        <h2 id="stage-panel-title" class="sr-only">Drawing</h2>
+        <div class="stage-frame">
+          <canvas id="quiz-doodle" width="320" height="320" aria-label="Doodle to classify"></canvas>
+          <div class="stopwatch" aria-live="polite">
+            <span class="stopwatch-label" data-i18n="rulesTimerLabel">Your time</span>
+            <span id="stopwatch-value" class="stopwatch-value">00:00.0</span>
+          </div>
+          <button id="next-round-btn" class="next-round-btn" type="button" hidden data-i18n="rulesNextRound">Next drawing</button>
         </div>
-    </div>
-    <div id="rule-based-ai-shell" class="focus rule-shell">
-        <h1 class="panel-title" data-i18n="rulesTitle">Rule-based AI</h1>
-        <div id="rule-based-ai-panel" class="rule-panel">
-    <div id="rule-based-ai">
-        <div id="challenges" class="tallbox side-card">
-            <div class="section-kicker" data-i18n="challengesTitle">Challenges</div>
-            <ul class="challenge-list">
-                <li>
-                    <label>
-                        <input type="checkbox" id="challenge-sun" disabled>
-                        <div data-i18n="challengeSun">Draw a sun.</div>
-                    </label>
-                </li>
-                <li>
-                    <label>
-                        <input type="checkbox" id="challenge-house" disabled>
-                        <div data-i18n="challengeHouse">Draw a house.</div>
-                    </label>
-                </li>
-                <li>
-                    <label>
-                        <input type="checkbox" id="challenge-fish" disabled>
-                        <div data-i18n="challengeFish">Draw a fish.</div>
-                    </label>
-                </li>
-            </ul>
-            <div class="challenge-note" data-i18n="challengeNote">
-                Challenges are complete when the AI recognizes the drawn image.
-            </div>
+      </section>
+
+      <aside class="rule-column ai-column" aria-labelledby="ai-panel-title">
+        <p class="rule-column-kicker" data-i18n="rulesAiKicker">AI answer</p>
+        <h2 id="ai-panel-title" data-i18n="rulesAiTitle">The AI has already decided.</h2>
+        <p id="ai-status" class="rule-column-helper" data-i18n="rulesAiWaiting">It is waiting for your answer before it reveals what it thinks.</p>
+
+        <div class="ai-answer-card">
+          <div class="ai-answer-label" data-i18n="detectedTitle">Detected:</div>
+          <div id="ai-answer-value" class="ai-answer-value" data-i18n="rulesAiHidden">Hidden for now</div>
         </div>
-        <div class="draw-panel">
-            <div class="section-kicker" data-i18n="ruleDrawTitle">Draw</div>
-            <p class="section-helper" data-i18n="ruleDrawHelper">Sketch one of the challenge doodles, then press Classify.</p>
-            <div class="prediction-row">
-                <div class="prediction-label-block">
-                    <span class="prediction-label-value" id="result-detected">Nothing detected yet.</span>
-                </div>
-                <button id="why-toggle-btn" class="why-toggle-btn" type="button" aria-expanded="false" aria-controls="why-panel" aria-label="Show why">?</button>
-            </div>
-            <div class="canvas-stage">
-                <div class="button-row canvas-tools-row">
-                    <button id="reset-btn" class="crit">
-                        <svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" data-name="Layer 1" viewBox="0 0 24 24">
-                            <path d="m15.854,10.854l-3.146,3.146,3.146,3.146c.195.195.195.512,0,.707-.098.098-.226.146-.354.146s-.256-.049-.354-.146l-3.146-3.146-3.146,3.146c-.098.098-.226.146-.354.146s-.256-.049-.354-.146c-.195-.195-.195-.512,0-.707l3.146-3.146-3.146-3.146c-.195-.195-.195-.512,0-.707s.512-.195.707,0l3.146,3.146,3.146-3.146c.195-.195.512-.195.707,0s.195.512,0,.707Zm7.146-6.354c0,.276-.224.5-.5.5h-1.5c0,.015,0,.03-.002.046l-1.37,14.867c-.215,2.33-2.142,4.087-4.481,4.087h-6.272c-2.337,0-4.263-1.754-4.48-4.08l-1.392-14.873c-.001-.016-.002-.031-.002-.047h-1.5c-.276,0-.5-.224-.5-.5s.224-.5.5-.5h5.028c.25-2.247,2.16-4,4.472-4h2c2.312,0,4.223,1.753,4.472,4h5.028c.276,0,.5.224.5.5Zm-15.464-.5h8.928c-.243-1.694-1.704-3-3.464-3h-2c-1.76,0-3.221,1.306-3.464,3Zm12.462,1H4.002l1.387,14.826c.168,1.81,1.667,3.174,3.484,3.174h6.272c1.82,0,3.318-1.366,3.485-3.179l1.366-14.821Z"/>
-                        </svg>
-                    </button>
-                    <button id="undo-btn">
-                        <svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" data-name="Layer 1" viewBox="0 0 24 24">
-                            <path d="M24,12c0,6.617-5.383,12-12,12C5.553,24,.287,18.958,.011,12.521c-.012-.276,.202-.509,.478-.521,.271,.011,.509,.202,.521,.479,.252,5.9,5.08,10.521,10.99,10.521,6.065,0,11-4.935,11-11S18.065,1,12,1c-3.751,0-7.159,1.87-9.202,5H7.5c.276,0,.5,.224,.5,.5s-.224,.5-.5,.5H2.5c-.827,0-1.5-.673-1.5-1.5V.5c0-.276,.224-.5,.5-.5s.5,.224,.5,.5V5.399C4.232,2.019,7.931,0,12,0c6.617,0,12,5.383,12,12Z"/>
-                        </svg>
-                    </button>
-                    <button id="redo-btn">
-                        <svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" data-name="Layer 1" viewBox="0 0 24 24">
-                            <path d="M23.989,12.521c-.275,6.437-5.542,11.479-11.989,11.479C5.383,24,0,18.617,0,12S5.383,0,12,0c4.04,0,7.789,2.066,10,5.414V.5c0-.276,.224-.5,.5-.5s.5,.224,.5,.5V5.5c0,.827-.673,1.5-1.5,1.5h-5c-.276,0-.5-.224-.5-.5s.224-.5,.5-.5h4.692C19.169,2.909,15.718,1,12,1,5.935,1,1,5.935,1,12s4.935,11,11,11c5.91,0,10.737-4.621,10.99-10.521,.012-.275,.246-.477,.521-.479,.276,.013,.49,.245,.478,.521Z"/>
-                        </svg>
-                    </button>
-                </div>
-                <canvas id="draw"></canvas>
-            </div>
-            <div id="why-panel" class="why-panel hidden" aria-hidden="true">
-                <div class="why-panel-title" data-i18n="whyTitle">Why:</div>
-                <div class="result-body" id="result-why">Draw something and press Classify to see why.</div>
-            </div>
-            <div class="button-row classify-row">
-                <button id="classify-btn" data-i18n="classifyBtn">Classify</button>
-                <button id="rules-btn">
-                    <svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" data-name="Layer 1" viewBox="0 0 24 24">
-                        <path d="M9.8,9.802c-.755,.753-1.122,1.476-1.122,2.208,0,.957,.64,1.706,1.122,2.187,.74,.739,1.47,1.108,2.2,1.108s1.46-.37,2.2-1.108c.755-.753,1.122-1.476,1.122-2.208,0-.957-.64-1.706-1.122-2.187-1.48-1.478-2.92-1.478-4.4,0Zm3.694,3.688c-1.251,1.248-2.042,.944-2.988,0-.565-.564-.828-1.034-.828-1.479,0-.454,.271-.944,.828-1.5,.583-.582,1.065-.826,1.511-.826,.511,0,.972,.322,1.478,.826,.565,.564,.828,1.034,.828,1.479,0,.454-.271,.944-.828,1.5Z"/>
-                        <g>
-                            <path d="M9.8,9.802c-.755,.753-1.122,1.476-1.122,2.208,0,.957,.64,1.706,1.122,2.187,.74,.739,1.47,1.108,2.2,1.108s1.46-.37,2.2-1.108c.755-.753,1.122-1.476,1.122-2.208,0-.957-.64-1.706-1.122-2.187-1.48-1.478-2.92-1.478-4.4,0Zm3.694,3.688c-1.251,1.248-2.042,.944-2.988,0-.565-.564-.828-1.034-.828-1.479,0-.454,.271-.944,.828-1.5,.583-.582,1.065-.826,1.511-.826,.511,0,.972,.322,1.478,.826,.565,.564,.828,1.034,.828,1.479,0,.454-.271,.944-.828,1.5Z"/>
-                            <path d="M23.019,11.948c.008-1.595-.817-2.481-2.521-2.7-.188-.394-.417-.787-.694-1.188,1.205-1.456,1.21-2.694,.026-3.876-1.183-1.181-2.425-1.175-3.884,.029-.401-.274-.794-.501-1.188-.688-.217-1.706-1.134-2.524-2.705-2.524-1.602,.008-2.495,.849-2.725,2.569-.392,.189-.791,.421-1.19,.691-1.451-1.197-2.694-1.194-3.89,0-1.178,1.175-1.18,2.448-.001,3.882-.273,.4-.506,.798-.696,1.189-1.719,.229-2.56,1.122-2.568,2.721-.008,1.595,.817,2.481,2.521,2.7,.188,.394,.417,.787,.694,1.188-1.205,1.456-1.21,2.694-.026,3.876,1.184,1.182,2.425,1.176,3.884-.029,.401,.274,.794,.501,1.188,.688,.216,1.697,1.113,2.524,2.682,2.524,1.605,0,2.519-.849,2.749-2.569,.392-.189,.791-.421,1.19-.691,1.451,1.197,2.694,1.193,3.89,0,1.178-1.175,1.18-2.448,.001-3.882,.273-.4,.506-.798,.696-1.189,1.719-.229,2.56-1.122,2.568-2.721Zm-3.36,2.053c-.227,.515-.544,1.051-.942,1.594-.142,.193-.127,.459,.036,.635,1.373,1.487,.898,2.2,.295,2.802-.63,.628-1.321,1.078-2.812-.295-.175-.162-.44-.176-.634-.036-.541,.395-1.077,.71-1.595,.937-.167,.073-.282,.232-.297,.415-.139,1.615-.779,1.942-1.766,1.947-1.008-.027-1.609-.304-1.734-1.9-.015-.186-.131-.348-.302-.421-.521-.222-1.041-.526-1.588-.929-.089-.065-.193-.097-.296-.097-.122,0-.243,.044-.338,.132-1.503,1.383-2.211,.919-2.807,.324-.595-.594-1.06-1.299,.323-2.797,.163-.177,.178-.444,.035-.637-.4-.541-.716-1.075-.937-1.588-.073-.17-.234-.286-.419-.301-1.587-.126-1.903-.755-1.898-1.729,.005-.984,.333-1.622,1.946-1.761,.182-.016,.341-.129,.415-.296,.227-.515,.544-1.051,.942-1.594,.142-.193,.127-.459-.036-.635-1.373-1.487-.898-2.2-.295-2.802,.606-.604,1.321-1.08,2.812,.295,.176,.163,.441,.178,.634,.036,.541-.395,1.077-.71,1.595-.937,.167-.073,.282-.232,.297-.415,.139-1.615,.779-1.942,1.766-1.947,.99-.027,1.608,.304,1.734,1.9,.015,.186,.131,.348,.302,.421,.521,.222,1.041,.526,1.588,.929,.193,.142,.458,.127,.635-.035,1.504-1.382,2.212-.918,2.807-.324,.595,.594,1.06,1.299-.323,2.797-.163,.177-.178,.444-.035,.637,.4,.541,.716,1.075,.937,1.588,.073,.17,.234,.286,.419,.301,1.587,.126,1.903,.755,1.898,1.729-.005,.984-.333,1.622-1.946,1.761-.182,.016-.341,.129-.415,.296Z"/>
-                        </g>
-                    </svg>
-                </button>
-            </div>
+
+        <div class="result-comparison">
+          <div class="comparison-block">
+            <span class="comparison-label" data-i18n="rulesYouAnswered">You answered</span>
+            <span id="player-answer-value" class="comparison-value">-</span>
+          </div>
+          <div class="comparison-block">
+            <span class="comparison-label" data-i18n="rulesAiAnswered">The AI answered</span>
+            <span id="ai-answer-repeat" class="comparison-value">-</span>
+          </div>
         </div>
-    </div>
-        </div>
-    </div>
-    
+      </aside>
+    </main>
   </div>
-  
+
   <script src="scripts/translations.js"></script>
   <script src="scripts/script.js"></script>
-  <script src="scripts/rules.js"></script>
   <script src="scripts/rule-based-ai.js"></script>
 </body>
 </html>

@@ -7,59 +7,163 @@
   <link rel="icon" href="./images/butterfly colored.png">
   <link rel="stylesheet" href="./styles/main.css">
 </head>
-<body>
+<body class="home-page">
   <div class="page">
     <div class="page-shell">
-    <div class="topbar sidebar">
-        <div class="brand-block">
-            <div class="brand-row">
-                <img src="./images/butterfly colored.png" alt="AI Playground Logo" class="logo">
-                <h1 data-i18n="siteTitle">The AI Playground</h1>
+      <div class="topbar topbar-floating">
+        <div class="lang-toggle">
+          <button id="lang-en" class="flag active">
+            <img src="./images/flags/uk_color.png" alt="English">
+          </button>
+          <div class="divider">/</div>
+          <button id="lang-da" class="flag">
+            <img src="./images/flags/dk_color.png" alt="Dansk">
+          </button>
+        </div>
+      </div>
+      <div class="focus home-focus">
+        <div class="intro journey-intro">
+          <div class="hero-brand">
+            <h1 class="hero-title" data-i18n="siteTitle">The AI Playground</h1>
+          </div>
+        </div>
+        <div class="home-screens" id="home-screens">
+          <section class="home-screen credits-screen" id="credits-screen" aria-label="Credits">
+            <div class="home-menu-group" id="credits-menu-group">
+              <div class="credits-topbar">
+                <h2 id="credits-title" class="credits-inline-title">Credits</h2>
+                <button class="level-back-button" id="credits-back-button" type="button" data-i18n="menuBack">Back</button>
+              </div>
+              <section class="credits-panel" aria-labelledby="credits-title">
+                <div class="credits-list" role="list">
+                  <article class="credit-item" role="listitem">
+                    <div class="credit-item-main">
+                      <span class="credit-role">Project</span>
+                      <span class="credit-name">Carrie S. Lovejoy</span>
+                    </div>
+                    <span class="credit-note">Project lead and overall direction</span>
+                  </article>
+
+                  <article class="credit-item" role="listitem">
+                    <div class="credit-item-main">
+                      <span class="credit-role">Design</span>
+                      <span class="credit-name">Carrie S. Lovejoy</span>
+                    </div>
+                    <span class="credit-note">Visual design and interaction design</span>
+                  </article>
+
+                  <article class="credit-item" role="listitem">
+                    <div class="credit-item-main">
+                      <span class="credit-role">Code</span>
+                      <span class="credit-name">gpt-5.4</span>
+                    </div>
+                    <span class="credit-note">Code implementation</span>
+                  </article>
+
+                  <article class="credit-item" role="listitem">
+                    <div class="credit-item-main">
+                      <span class="credit-role">Doodles</span>
+                      <span class="credit-name">Google</span>
+                    </div>
+                    <span class="credit-note">Doodle data sourced from the Quick, Draw! dataset</span>
+                  </article>
+
+                  <article class="credit-item" role="listitem">
+                    <div class="credit-item-main">
+                      <span class="credit-role">Icons</span>
+                      <span class="credit-name">Carrie S. Lovejoy</span>
+                    </div>
+                    <span class="credit-note">Hand-drawn flag icons</span>
+                  </article>
+                </div>
+              </section>
             </div>
-        <p class="sidebar-kicker" data-i18n="introKicker">Learn AI by trying it</p>
+          </section>
+          <section class="home-screen" id="session-screen" aria-label="Session menu">
+            <div class="home-menu-group" id="session-menu-group">
+              <div class="home-menu" id="session-menu" aria-label="Session menu">
+                <div class="menu-entry" id="menu-continue" role="button" tabindex="0" aria-labelledby="menu-continue-label">
+                  <div class="menu-entry-content">
+                    <div class="menu-entry-copy">
+                      <span class="menu-entry-title" id="menu-continue-label" data-i18n="menuContinue">Continue</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="menu-entry" id="menu-new-session" role="button" tabindex="0" aria-labelledby="menu-new-session-label">
+                  <div class="menu-entry-content">
+                    <div class="menu-entry-copy">
+                      <span class="menu-entry-title" id="menu-new-session-label" data-i18n="menuNewSession">New session</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="menu-entry" id="menu-language-option" role="button" tabindex="0" aria-labelledby="menu-language-label">
+                  <div class="menu-entry-content">
+                    <div class="menu-entry-copy">
+                      <span class="menu-entry-title" id="menu-language-label" data-i18n="menuLanguage">Language</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="menu-entry" id="menu-credits" role="button" tabindex="0" aria-labelledby="menu-credits-label">
+                  <div class="menu-entry-content">
+                    <div class="menu-entry-copy">
+                      <span class="menu-entry-title" id="menu-credits-label" data-i18n="menuCredits">Credits</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+          <section class="home-screen" id="level-screen" aria-label="Level menu">
+            <section class="micro-quiz" id="micro-quiz" aria-live="polite" hidden>
+              <p class="micro-quiz-question" id="micro-quiz-question" data-i18n="homeQuizQuestion1">What is this?</p>
+              <canvas class="micro-quiz-canvas" id="micro-quiz-canvas" width="180" height="180" aria-label="Quiz drawing"></canvas>
+              <div class="micro-quiz-options" role="list">
+                <button class="micro-quiz-option" type="button" data-answer="house" data-i18n="labelHouse">House</button>
+                <button class="micro-quiz-option" type="button" data-answer="sun" data-i18n="labelSun">Sun</button>
+                <button class="micro-quiz-option" type="button" data-answer="fish" data-i18n="labelFish">Fish</button>
+              </div>
+              <p class="micro-quiz-feedback" id="micro-quiz-feedback"></p>
+            </section>
+            <div class="home-menu-group" id="level-menu-group">
+              <button class="level-back-button" id="level-back-button" type="button" data-i18n="menuBack">Back</button>
+              <div class="home-menu" id="level-menu" aria-label="AI menu">
+                <div class="menu-entry menu-entry-active" id="slot-left" role="button" tabindex="0" aria-labelledby="slot-left-label">
+                  <div class="menu-entry-content">
+                    <span class="menu-entry-index" aria-hidden="true">01</span>
+                    <div class="menu-entry-copy">
+                      <span class="menu-entry-title" id="slot-left-label" data-i18n="rulesTitle">Rule-based AI</span>
+                      <span class="menu-entry-subtitle" data-i18n="rulesText">It follows simple rules.</span>
+                    </div>
+                  </div>
+                  <button id="start-rule-based" class="start-btn node-action">Start</button>
+                </div>
+                <div class="menu-entry locked" id="slot-center" role="button" tabindex="0" aria-labelledby="slot-center-label">
+                  <div class="menu-entry-content">
+                    <span class="menu-entry-index" aria-hidden="true">02</span>
+                    <div class="menu-entry-copy">
+                      <span class="menu-entry-title" id="slot-center-label" data-i18n="classifierTitle">Image classifier</span>
+                      <span class="menu-entry-subtitle" data-i18n="classifierText">It spots patterns in pictures.</span>
+                    </div>
+                  </div>
+                  <button id="start-image-classifier" class="start-btn node-action" hidden>Start</button>
+                </div>
+                <div class="menu-entry locked" id="slot-right" role="button" tabindex="0" aria-labelledby="slot-right-label">
+                  <div class="menu-entry-content">
+                    <span class="menu-entry-index" aria-hidden="true">03</span>
+                    <div class="menu-entry-copy">
+                      <span class="menu-entry-title" id="slot-right-label" data-i18n="chatbotTitle">Vision Chat</span>
+                      <span class="menu-entry-subtitle" data-i18n="chatbotText">It talks like it understands.</span>
+                    </div>
+                  </div>
+                  <button id="start-chatbot" class="start-btn node-action" hidden>Start</button>
+                </div>
+              </div>
+            </div>
+          </section>
         </div>
-        <div id="menu-home" data-i18n="menuOption1" class="menuoption active">Home</div>
-        <div id="menu-about" data-i18n="menuOption2" class="menuoption">About</div>
-        <div id="menu-curious" data-i18n="menuOption3" class="menuoption">For the curious</div>
-        <div class="lang-toggle sidebar-lang-toggle">
-            <button id="lang-en" class="flag active">
-                <img src="./images/flags/uk_color.png" alt="English">
-            </button>
-            <div class="divider">/</div>
-            <button id="lang-da" class="flag">
-                <img src="./images/flags/dk_color.png" alt="Dansk">
-            </button>
-        </div>
-    </div>
-    <div class="focus">
-      <div class="intro"> 
-          <h2 data-i18n="intro1">Try different kinds of AI</h2>
-          <p class="intro-lead" data-i18n="intro2">Pick a card below to explore how each one works.</p>
       </div>
-      <div class="cards-row">
-        <div class="card card-step card-step-active" id="slot-left">
-          <div class="card-step-badge" aria-hidden="true">1</div>
-          <h2 data-i18n="rulesTitle">Rule-based AI</h2>
-          <p data-i18n="rulesText">It follows simple rules.</p>
-          <button id="start-rule-based"class="start-btn">Start</button>
-        </div>
-        <div class="card locked card-step card-step-next" id="slot-center">
-          <div class="card-step-badge" aria-hidden="true">2</div>
-          <h2 data-i18n="classifierTitle">Image classifier</h2>
-          <p data-i18n="classifierText">It spots patterns in pictures.</p>
-          <button id="start-image-classifier" class="start-btn" hidden>Start</button>
-        </div>
-        <div class="card locked card-step card-step-locked" id="slot-right">
-          <div class="card-step-badge" aria-hidden="true">3</div>
-          <h2 data-i18n="chatbotTitle">Vision Chat</h2>
-          <p data-i18n="chatbotText">It talks like it understands.</p>
-        </div>
-      </div>
     </div>
-    </div>
-    
   </div>
-  
 
   <script src="scripts/translations.js"></script>
   <script src="scripts/script.js"></script>

@@ -1,492 +1,462 @@
-const canvas = document.getElementById("draw");
-const ctx = canvas.getContext("2d");
-const detectedTextEl = document.getElementById("result-detected");
-const whyTextEl = document.getElementById("result-why");
-const whyToggleBtn = document.getElementById("why-toggle-btn");
-const whyPanelEl = document.getElementById("why-panel");
-const undoBtn = document.getElementById("undo-btn");
-const redoBtn = document.getElementById("redo-btn");
+const quizCanvas = document.getElementById("quiz-doodle");
 
-// Set canvas sizes
-canvas.width = canvas.offsetWidth;
-canvas.height = canvas.offsetHeight;
+if (quizCanvas) {
+  const quizCtx = quizCanvas.getContext("2d");
+  const answerButtons = Array.from(document.querySelectorAll(".answer-option"));
+  const playerStatusEl = document.getElementById("player-status");
+  const aiStatusEl = document.getElementById("ai-status");
+  const aiAnswerValueEl = document.getElementById("ai-answer-value");
+  const playerAnswerValueEl = document.getElementById("player-answer-value");
+  const aiAnswerRepeatEl = document.getElementById("ai-answer-repeat");
+  const stopwatchValueEl = document.getElementById("stopwatch-value");
+  const nextRoundBtn = document.getElementById("next-round-btn");
 
-// Drawing history for undo/redo
-let history = [];
-let redoHistory = [];
+  const DATASET_LIMIT = 80;
+  const DATASETS = [
+    { labelKey: "labelSun", path: "./images/full_binary_sun.bin" },
+    { labelKey: "labelHouse", path: "./images/full_binary_house.bin" },
+    { labelKey: "labelFish", path: "./images/full_binary_fish.bin" }
+  ];
 
-let placeholderImage = null;
-let whyPanelOpen = false;
-const WHY_POPUP_OFFSET = 12;
+  let samplePool = [];
+  let currentRound = null;
+  let roundTimerId = null;
+  let roundStartedAt = 0;
 
-function updateUndoButtonState() {
-  undoBtn.disabled = history.length <= 1;
-}
+  const builtInRules = [
+    {
+      label: "labelFish",
+      conditions: [
+        { feature: "aspectRatio", op: ">", value: 1.2 },
+        { feature: "middleHRatio", op: ">", value: 0.45 },
+        { feature: "verticalSymmetry", op: "<", value: 0.9 }
+      ]
+    },
+    {
+      label: "labelHouse",
+      conditions: [
+        { feature: "bottomRatio", op: ">", value: 0.30 },
+        { feature: "verticalSymmetry", op: ">", value: 0.75 },
+        { feature: "aspectRatio", op: "<", value: 0.95 },
+        { feature: "density", op: ">", value: 0.16 }
+      ]
+    },
+    {
+      label: "labelSun",
+      conditions: [
+        { feature: "aspectRatio", op: ">", value: 0.85 },
+        { feature: "aspectRatio", op: "<", value: 1.3 },
+        { feature: "verticalSymmetry", op: ">", value: 0.75 },
+        { feature: "density", op: "<", value: 0.18 }
+      ]
+    }
+  ];
 
-function updateRedoButtonState() {
-  redoBtn.disabled = redoHistory.length === 0;
-}
-
-// White background
-resetCanvas();
-setResultPlaceholder();
-updateWhyPanel(false);
-
-// Simple drawing
-let drawing = false;
-let strokeMoved = false;
-
-let hasDrawn = false;
-
-canvas.addEventListener("mousedown", (e) => {
-  if (!hasDrawn) {
-    ctx.fillStyle = "white";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    hasDrawn = true;
+  function updateDocumentLanguage() {
+    document.documentElement.lang = currentLang === "da" ? "da" : "en";
+    document.title = t("pageTitleRuleBased");
   }
 
-  drawing = true;
-  strokeMoved = false;
+  window.applyRulesTranslations = function applyRulesTranslations() {
+    updateDocumentLanguage();
 
-  const rect = canvas.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  const y = e.clientY - rect.top;
+    if (!currentRound) return;
 
-  ctx.beginPath();
-  ctx.moveTo(x, y);
-});
-
-canvas.addEventListener("mouseup", () => {
-  if (drawing && strokeMoved) {
-    history.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
-    if (history.length > 10) history.shift();
-
-    // New action invalidates redo history
-    redoHistory = [];
-  }
-  drawing = false;
-  ctx.beginPath();
-  updateUndoButtonState();
-  updateRedoButtonState();
-});
-
-canvas.addEventListener("mouseleave", () => {
-  if (drawing && strokeMoved) {
-    history.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
-    if (history.length > 10) history.shift();
-
-    // New action invalidates redo history
-    redoHistory = [];
-  }
-  drawing = false;
-  ctx.beginPath();
-  updateUndoButtonState();
-  updateRedoButtonState();
-});
-
-canvas.addEventListener("mousemove", draw);
-
-document.getElementById("reset-btn").addEventListener("click", () => {
-  hasDrawn = false;
-  resetCanvas();
-  setResultPlaceholder();
-});
-
-document.getElementById("undo-btn").addEventListener("click", () => {
-  if (history.length > 1) {
-    const currentState = history.pop();
-    redoHistory.push(currentState);
-
-    const previousState = history[history.length - 1];
-    ctx.putImageData(previousState, 0, 0);
-
-    hasDrawn = !isSameImageData(previousState, placeholderImage);
-  }
-  updateUndoButtonState();
-  updateRedoButtonState();
-});
-
-document.getElementById("redo-btn").addEventListener("click", () => {
-  if (redoHistory.length > 0) {
-    const redoneState = redoHistory.pop();
-    history.push(redoneState);
-
-    if (history.length > 10) history.shift();
-
-    ctx.putImageData(redoneState, 0, 0);
-    hasDrawn = !isSameImageData(redoneState, placeholderImage);
-  }
-  updateUndoButtonState();
-  updateRedoButtonState();
-});
-
-document.getElementById("classify-btn").addEventListener("click", () => {
-  const normCanvas = normalizeCanvas(ctx, canvas.width, canvas.height, 64);
-  const normCtx = normCanvas.getContext("2d");
-  const features = extractFeatures(normCtx, 64, 64);
-  const prediction = classifyByRules(features);
-
-  const challengeMap = {
-    labelSun: "challenge-sun",
-    labelHouse: "challenge-house",
-    labelFish: "challenge-fish"
+    if (currentRound.answered) {
+      playerAnswerValueEl.textContent = t(currentRound.playerAnswer);
+      aiAnswerValueEl.textContent = t(currentRound.aiAnswer);
+      aiAnswerRepeatEl.textContent = t(currentRound.aiAnswer);
+      playerStatusEl.textContent = currentRound.playerAnswer === currentRound.aiAnswer
+        ? t("rulesPlayerMatched")
+        : t("rulesPlayerDiffered");
+      aiStatusEl.textContent = t("rulesAiReveal");
+    } else {
+      playerStatusEl.textContent = t("rulesPlayerWaiting");
+      aiStatusEl.textContent = t("rulesAiWaiting");
+      aiAnswerValueEl.textContent = t("rulesAiHidden");
+      playerAnswerValueEl.textContent = "-";
+      aiAnswerRepeatEl.textContent = "-";
+    }
   };
 
-  if (challengeMap[prediction.label]) {
-    document.getElementById(challengeMap[prediction.label]).checked = true;
-  }
+  function parseQuickDrawBinary(buffer, limit) {
+    const view = new DataView(buffer);
+    const drawings = [];
+    let offset = 0;
 
-  if (prediction.label.startsWith("label")) {
-    detectedTextEl.dataset.i18n = prediction.label;
-    detectedTextEl.textContent = t(prediction.label);
-  } else {
-    detectedTextEl.removeAttribute("data-i18n");
-    detectedTextEl.textContent = prediction.label;
-  }
+    while (offset < view.byteLength && drawings.length < limit) {
+      if (offset + 15 > view.byteLength) break;
 
-  whyTextEl.innerHTML = `
-    <ul>
-      ${prediction.reasons.map(reason => {
-        if (reason.startsWith("reason")) {
-          return `<li data-i18n="${reason}">${t(reason)}</li>`;
-        } else {
-          return `<li>${reason}</li>`;
+      offset += 8;
+      offset += 2;
+      offset += 1;
+      offset += 4;
+
+      const strokeCount = view.getUint16(offset, true);
+      offset += 2;
+
+      const drawing = [];
+      let valid = true;
+
+      for (let strokeIndex = 0; strokeIndex < strokeCount; strokeIndex++) {
+        if (offset + 2 > view.byteLength) {
+          valid = false;
+          break;
         }
-      }).join("")}
-    </ul>
-  `;
 
-  whyToggleBtn.disabled = false;
-  updateWhyPanel(false);
-  applyTranslations();
-});
+        const pointCount = view.getUint16(offset, true);
+        offset += 2;
 
-whyToggleBtn.addEventListener("click", () => {
-  if (whyToggleBtn.disabled) return;
-  const rect = whyToggleBtn.getBoundingClientRect();
-  updateWhyPanel(!whyPanelOpen, {
-    x: rect.right,
-    y: rect.top
-  });
-});
+        if (offset + pointCount * 2 > view.byteLength) {
+          valid = false;
+          break;
+        }
 
-whyToggleBtn.addEventListener("mouseenter", (event) => {
-  if (whyToggleBtn.disabled) return;
-  updateWhyPanel(true, {
-    x: event.clientX,
-    y: event.clientY
-  });
-});
+        const xs = [];
+        const ys = [];
 
-whyToggleBtn.addEventListener("mousemove", (event) => {
-  if (!whyPanelOpen || whyToggleBtn.disabled) return;
-  positionWhyPanel(event.clientX, event.clientY);
-});
+        for (let pointIndex = 0; pointIndex < pointCount; pointIndex++) {
+          xs.push(view.getUint8(offset + pointIndex));
+        }
+        offset += pointCount;
 
-whyToggleBtn.addEventListener("mouseleave", () => {
-  updateWhyPanel(false);
-});
+        for (let pointIndex = 0; pointIndex < pointCount; pointIndex++) {
+          ys.push(view.getUint8(offset + pointIndex));
+        }
+        offset += pointCount;
 
-whyToggleBtn.addEventListener("focus", () => {
-  if (whyToggleBtn.disabled) return;
-  const rect = whyToggleBtn.getBoundingClientRect();
-  updateWhyPanel(true, {
-    x: rect.right,
-    y: rect.top
-  });
-});
+        drawing.push({ xs, ys });
+      }
 
-whyToggleBtn.addEventListener("blur", () => {
-  updateWhyPanel(false);
-});
+      if (!valid) break;
+      drawings.push(drawing);
+    }
 
-function resetCanvas() {
-  ctx.fillStyle = "white";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  ctx.fillStyle = "grey";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.font = "1.8rem Caroni, sans-serif";
-  ctx.fillText(t("drawHere"), canvas.width / 2, canvas.height / 2);
-
-  ctx.beginPath();
-
-  const initialState = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  placeholderImage = initialState;
-  history = [initialState];
-  redoHistory = [];
-  updateUndoButtonState();
-  updateRedoButtonState();
-}
-
-function setResultPlaceholder() {
-  detectedTextEl.removeAttribute("data-i18n");
-  detectedTextEl.textContent = t("ruleDetectedPlaceholder");
-  whyTextEl.removeAttribute("data-i18n");
-  whyTextEl.textContent = t("ruleWhyPlaceholder");
-  whyToggleBtn.disabled = true;
-  updateWhyPanel(false);
-}
-
-function updateWhyPanel(nextOpen, position = null) {
-  whyPanelOpen = nextOpen && !whyToggleBtn.disabled;
-  whyPanelEl.classList.toggle("hidden", !whyPanelOpen);
-  whyPanelEl.setAttribute("aria-hidden", String(!whyPanelOpen));
-  whyToggleBtn.setAttribute("aria-expanded", String(whyPanelOpen));
-  whyToggleBtn.setAttribute("aria-label", t(whyPanelOpen ? "ruleHideWhyAria" : "ruleWhyToggleAria"));
-
-  if (whyPanelOpen && position) {
-    positionWhyPanel(position.x, position.y);
-  }
-}
-
-function positionWhyPanel(clientX, clientY) {
-  const panelWidth = whyPanelEl.offsetWidth;
-  const panelHeight = whyPanelEl.offsetHeight;
-  const maxLeft = window.innerWidth - panelWidth - 16;
-  const maxTop = window.innerHeight - panelHeight - 16;
-  const nextLeft = Math.min(clientX + WHY_POPUP_OFFSET, Math.max(16, maxLeft));
-  const nextTop = Math.min(clientY + WHY_POPUP_OFFSET, Math.max(16, maxTop));
-
-  whyPanelEl.style.left = `${Math.max(16, nextLeft)}px`;
-  whyPanelEl.style.top = `${Math.max(16, nextTop)}px`;
-}
-
-function isSameImageData(img1, img2) {
-  if (!img1 || !img2 || img1.data.length !== img2.data.length) return false;
-
-  for (let i = 0; i < img1.data.length; i++) {
-    if (img1.data[i] !== img2.data[i]) return false;
+    return drawings;
   }
 
-  return true;
-}
+  function drawQuickDraw(drawing) {
+    quizCtx.fillStyle = "#f6f6f6";
+    quizCtx.fillRect(0, 0, quizCanvas.width, quizCanvas.height);
+    quizCtx.strokeStyle = "#1b2631";
+    quizCtx.lineCap = "round";
+    quizCtx.lineJoin = "round";
+    quizCtx.lineWidth = 10;
 
-function draw(e) {
-  if (!drawing) return;
+    const points = [];
+    drawing.forEach(stroke => {
+      for (let index = 0; index < stroke.xs.length; index++) {
+        points.push({ x: stroke.xs[index], y: stroke.ys[index] });
+      }
+    });
 
-  const rect = canvas.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  const y = e.clientY - rect.top;
+    if (!points.length) return;
 
-  ctx.lineWidth = 5;
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-  ctx.strokeStyle = "black";
+    const minX = Math.min(...points.map(point => point.x));
+    const maxX = Math.max(...points.map(point => point.x));
+    const minY = Math.min(...points.map(point => point.y));
+    const maxY = Math.max(...points.map(point => point.y));
+    const boxWidth = Math.max(1, maxX - minX);
+    const boxHeight = Math.max(1, maxY - minY);
+    const padding = 34;
+    const scale = Math.min(
+      (quizCanvas.width - padding * 2) / boxWidth,
+      (quizCanvas.height - padding * 2) / boxHeight
+    );
+    const offsetX = (quizCanvas.width - boxWidth * scale) / 2;
+    const offsetY = (quizCanvas.height - boxHeight * scale) / 2;
 
-  strokeMoved = true;
-  ctx.lineTo(x, y);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(x, y);
-}
+    drawing.forEach(stroke => {
+      if (!stroke.xs.length) return;
 
-function normalizeCanvas(sourceCtx, width, height, targetSize = 64) {
-  const image = sourceCtx.getImageData(0, 0, width, height);
-  const data = image.data;
+      quizCtx.beginPath();
+      quizCtx.moveTo(
+        offsetX + (stroke.xs[0] - minX) * scale,
+        offsetY + (stroke.ys[0] - minY) * scale
+      );
 
-  let minX = width;
-  let minY = height;
-  let maxX = -1;
-  let maxY = -1;
-  let foundInk = false;
+      for (let index = 1; index < stroke.xs.length; index++) {
+        quizCtx.lineTo(
+          offsetX + (stroke.xs[index] - minX) * scale,
+          offsetY + (stroke.ys[index] - minY) * scale
+        );
+      }
 
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const i = (y * width + x) * 4;
-      const r = data[i];
-      const g = data[i + 1];
-      const b = data[i + 2];
+      quizCtx.stroke();
+    });
+  }
 
-      const isInk = (r + g + b) / 3 < 200;
+  function normalizeCanvas(sourceCtx, width, height, targetSize = 64) {
+    const image = sourceCtx.getImageData(0, 0, width, height);
+    const data = image.data;
 
-      if (isInk) {
-        foundInk = true;
-        if (x < minX) minX = x;
-        if (x > maxX) maxX = x;
-        if (y < minY) minY = y;
-        if (y > maxY) maxY = y;
+    let minX = width;
+    let minY = height;
+    let maxX = -1;
+    let maxY = -1;
+    let foundInk = false;
+
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const i = (y * width + x) * 4;
+        const average = (data[i] + data[i + 1] + data[i + 2]) / 3;
+        const isInk = average < 220;
+
+        if (isInk) {
+          foundInk = true;
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
       }
     }
+
+    const normalizedCanvas = document.createElement("canvas");
+    normalizedCanvas.width = targetSize;
+    normalizedCanvas.height = targetSize;
+    const normalizedCtx = normalizedCanvas.getContext("2d");
+    normalizedCtx.fillStyle = "white";
+    normalizedCtx.fillRect(0, 0, targetSize, targetSize);
+
+    if (!foundInk) {
+      return normalizedCanvas;
+    }
+
+    const boxWidth = maxX - minX + 1;
+    const boxHeight = maxY - minY + 1;
+    const padding = 4;
+    const availableSize = targetSize - 2 * padding;
+    const scale = Math.min(availableSize / boxWidth, availableSize / boxHeight);
+    const newWidth = Math.max(1, Math.round(boxWidth * scale));
+    const newHeight = Math.max(1, Math.round(boxHeight * scale));
+    const offsetX = Math.floor((targetSize - newWidth) / 2);
+    const offsetY = Math.floor((targetSize - newHeight) / 2);
+
+    normalizedCtx.drawImage(
+      sourceCtx.canvas,
+      minX, minY, boxWidth, boxHeight,
+      offsetX, offsetY, newWidth, newHeight
+    );
+
+    return normalizedCanvas;
   }
 
-  const normCanvas = document.createElement("canvas");
-  normCanvas.width = targetSize;
-  normCanvas.height = targetSize;
-  const normCtx = normCanvas.getContext("2d");
+  function extractFeatures(ctx, width, height) {
+    const image = ctx.getImageData(0, 0, width, height);
+    const data = image.data;
+    const inkPixels = [];
 
-  normCtx.fillStyle = "white";
-  normCtx.fillRect(0, 0, targetSize, targetSize);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const i = (y * width + x) * 4;
+        const average = (data[i] + data[i + 1] + data[i + 2]) / 3;
+        if (average < 200) inkPixels.push({ x, y });
+      }
+    }
 
-  if (!foundInk) {
-    return normCanvas;
+    if (!inkPixels.length) return { empty: true };
+
+    const xs = inkPixels.map(point => point.x);
+    const ys = inkPixels.map(point => point.y);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+    const boxWidth = maxX - minX + 1;
+    const boxHeight = maxY - minY + 1;
+
+    let top = 0;
+    let middleH = 0;
+    let bottom = 0;
+    let left = 0;
+    let middleV = 0;
+    let right = 0;
+
+    for (const point of inkPixels) {
+      if (point.y < height / 3) top++;
+      else if (point.y < 2 * height / 3) middleH++;
+      else bottom++;
+
+      if (point.x < width / 3) left++;
+      else if (point.x < 2 * width / 3) middleV++;
+      else right++;
+    }
+
+    const binary = Array.from({ length: height }, () => Array(width).fill(0));
+    for (const point of inkPixels) {
+      binary[point.y][point.x] = 1;
+    }
+
+    let verticalMatches = 0;
+    let verticalChecks = 0;
+
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < Math.floor(width / 2); x++) {
+        if (binary[y][x] === binary[y][width - 1 - x]) verticalMatches++;
+        verticalChecks++;
+      }
+    }
+
+    return {
+      empty: false,
+      aspectRatio: boxWidth / boxHeight,
+      density: inkPixels.length / (boxWidth * boxHeight),
+      middleHRatio: middleH / inkPixels.length,
+      bottomRatio: bottom / inkPixels.length,
+      verticalSymmetry: verticalMatches / verticalChecks
+    };
   }
 
-  const boxWidth = maxX - minX + 1;
-  const boxHeight = maxY - minY + 1;
+  function evaluateCondition(features, condition) {
+    const value = features[condition.feature];
+    if (condition.op === ">") return value > condition.value;
+    if (condition.op === "<") return value < condition.value;
+    return false;
+  }
 
-  const padding = 4;
-  const availableSize = targetSize - 2 * padding;
+  function classifyByRules(features) {
+    if (features.empty) return "labelNothing";
 
-  const scale = Math.min(availableSize / boxWidth, availableSize / boxHeight);
-  const newWidth = Math.max(1, Math.round(boxWidth * scale));
-  const newHeight = Math.max(1, Math.round(boxHeight * scale));
+    for (const rule of builtInRules) {
+      if (rule.conditions.every(condition => evaluateCondition(features, condition))) {
+        return rule.label;
+      }
+    }
 
-  const offsetX = Math.floor((targetSize - newWidth) / 2);
-  const offsetY = Math.floor((targetSize - newHeight) / 2);
+    return "labelUnknown";
+  }
 
-  normCtx.drawImage(
-    canvas,
-    minX, minY, boxWidth, boxHeight,
-    offsetX, offsetY, newWidth, newHeight
-  );
+  function computeAiAnswer(drawing) {
+    drawQuickDraw(drawing);
+    const normalizedCanvas = normalizeCanvas(quizCtx, quizCanvas.width, quizCanvas.height, 64);
+    const normalizedCtx = normalizedCanvas.getContext("2d");
+    return classifyByRules(extractFeatures(normalizedCtx, 64, 64));
+  }
 
-  return normCanvas;
-}
+  function formatElapsed(ms) {
+    const totalSeconds = ms / 1000;
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = Math.floor(totalSeconds % 60);
+    const tenths = Math.floor((ms % 1000) / 100);
+    return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}.${tenths}`;
+  }
 
-function extractFeatures(ctx, width, height) {
-  const image = ctx.getImageData(0, 0, width, height);
-  const data = image.data;
-
-  let inkPixels = [];
-
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const i = (y * width + x) * 4;
-      const r = data[i];
-      const g = data[i + 1];
-      const b = data[i + 2];
-
-      const isInk = (r + g + b) / 3 < 200;
-      if (isInk) inkPixels.push({ x, y });
+  function stopTimer() {
+    if (roundTimerId) {
+      window.clearInterval(roundTimerId);
+      roundTimerId = null;
     }
   }
 
-  if (inkPixels.length === 0) {
-    return { empty: true };
+  function startTimer() {
+    stopTimer();
+    roundStartedAt = Date.now();
+    stopwatchValueEl.textContent = formatElapsed(0);
+    roundTimerId = window.setInterval(() => {
+      stopwatchValueEl.textContent = formatElapsed(Date.now() - roundStartedAt);
+    }, 100);
   }
 
-  const xs = inkPixels.map(p => p.x);
-  const ys = inkPixels.map(p => p.y);
-
-  const minX = Math.min(...xs);
-  const maxX = Math.max(...xs);
-  const minY = Math.min(...ys);
-  const maxY = Math.max(...ys);
-
-  const boxWidth = maxX - minX + 1;
-  const boxHeight = maxY - minY + 1;
-  const aspectRatio = boxWidth / boxHeight;
-  const density = inkPixels.length / (boxWidth * boxHeight);
-
-  let sumX = 0;
-  let sumY = 0;
-  for (const p of inkPixels) {
-    sumX += p.x;
-    sumY += p.y;
+  function resetRoundUi() {
+    answerButtons.forEach(button => {
+      button.disabled = false;
+      button.classList.remove("selected", "correct", "incorrect");
+    });
+    playerStatusEl.textContent = t("rulesPlayerWaiting");
+    aiStatusEl.textContent = t("rulesAiWaiting");
+    aiAnswerValueEl.textContent = t("rulesAiHidden");
+    playerAnswerValueEl.textContent = "-";
+    aiAnswerRepeatEl.textContent = "-";
+    nextRoundBtn.hidden = true;
   }
 
-  const centerX = sumX / inkPixels.length;
-  const centerY = sumY / inkPixels.length;
-
-  let top = 0, middleH = 0, bottom = 0;
-  let left = 0, middleV = 0, right = 0;
-
-  for (const p of inkPixels) {
-    if (p.y < height / 3) top++;
-    else if (p.y < 2 * height / 3) middleH++;
-    else bottom++;
-
-    if (p.x < width / 3) left++;
-    else if (p.x < 2 * width / 3) middleV++;
-    else right++;
+  function chooseRandomSample() {
+    const index = Math.floor(Math.random() * samplePool.length);
+    return samplePool[index];
   }
 
-  const binary = Array.from({ length: height }, () => Array(width).fill(0));
-  for (const p of inkPixels) {
-    binary[p.y][p.x] = 1;
+  function beginRound() {
+    if (!samplePool.length) return;
+
+    const sample = chooseRandomSample();
+    currentRound = {
+      sample,
+      aiAnswer: sample.aiAnswer,
+      playerAnswer: null,
+      answered: false
+    };
+
+    drawQuickDraw(sample.drawing);
+    resetRoundUi();
+    startTimer();
   }
 
-  let verticalMatches = 0, verticalChecks = 0;
-  let horizontalMatches = 0, horizontalChecks = 0;
+  function revealRound(playerAnswer) {
+    if (!currentRound || currentRound.answered) return;
 
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < Math.floor(width / 2); x++) {
-      if (binary[y][x] === binary[y][width - 1 - x]) verticalMatches++;
-      verticalChecks++;
-    }
+    currentRound.playerAnswer = playerAnswer;
+    currentRound.answered = true;
+    stopTimer();
+
+    answerButtons.forEach(button => {
+      button.disabled = true;
+      const answerKey = button.dataset.answer;
+      button.classList.toggle("selected", answerKey === playerAnswer);
+      button.classList.toggle("correct", answerKey === currentRound.aiAnswer);
+      button.classList.toggle("incorrect", answerKey === playerAnswer && playerAnswer !== currentRound.aiAnswer);
+    });
+
+    playerAnswerValueEl.textContent = t(playerAnswer);
+    aiAnswerValueEl.textContent = t(currentRound.aiAnswer);
+    aiAnswerRepeatEl.textContent = t(currentRound.aiAnswer);
+    aiStatusEl.textContent = t("rulesAiReveal");
+    playerStatusEl.textContent = playerAnswer === currentRound.aiAnswer
+      ? t("rulesPlayerMatched")
+      : t("rulesPlayerDiffered");
+    nextRoundBtn.hidden = false;
   }
 
-  for (let y = 0; y < Math.floor(height / 2); y++) {
-    for (let x = 0; x < width; x++) {
-      if (binary[y][x] === binary[height - 1 - y][x]) horizontalMatches++;
-      horizontalChecks++;
-    }
+  async function loadSamples() {
+    const loaded = await Promise.all(DATASETS.map(async dataset => {
+      const response = await fetch(dataset.path);
+      if (!response.ok) return [];
+
+      const buffer = await response.arrayBuffer();
+      const drawings = parseQuickDrawBinary(buffer, DATASET_LIMIT);
+
+      return drawings.map(drawing => ({
+        labelKey: dataset.labelKey,
+        drawing,
+        aiAnswer: null
+      }));
+    }));
+
+    samplePool = loaded.flat();
+
+    samplePool.forEach(sample => {
+      sample.aiAnswer = computeAiAnswer(sample.drawing);
+    });
   }
 
-  let upperMiddle = 0;
-  let lowerMiddle = 0;
+  answerButtons.forEach(button => {
+    button.addEventListener("click", () => revealRound(button.dataset.answer));
+  });
 
-  for (const p of inkPixels) {
-    if (p.y >= height / 3 && p.y < 2 * height / 3) {
-      if (p.x < width / 2) upperMiddle++;
-      else lowerMiddle++;
-    }
-  }
+  nextRoundBtn.addEventListener("click", beginRound);
 
-  const leftHalfRatio = inkPixels.filter(p => p.x < width / 2).length / inkPixels.length;
-  const rightHalfRatio = inkPixels.filter(p => p.x >= width / 2).length / inkPixels.length;
+  updateDocumentLanguage();
+  applyTranslations();
 
-  const colCounts = Array(width).fill(0);
-  for (const p of inkPixels) {
-    colCounts[p.x]++;
-  }
-
-  const maxColCount = Math.max(...colCounts);
-  const minColCount = Math.min(...colCounts.filter(c => c > 0));
-  const colVariation = maxColCount > 0 ? minColCount / maxColCount : 0;
-
-  return {
-    empty: false,
-    inkCount: inkPixels.length,
-    minX, maxX, minY, maxY,
-    boxWidth, boxHeight,
-    aspectRatio,
-    density,
-    centerX, centerY,
-    topRatio: top / inkPixels.length,
-    middleHRatio: middleH / inkPixels.length,
-    bottomRatio: bottom / inkPixels.length,
-    leftRatio: left / inkPixels.length,
-    middleVRatio: middleV / inkPixels.length,
-    rightRatio: right / inkPixels.length,
-    leftHalfRatio,
-    rightHalfRatio,
-    verticalSymmetry: verticalMatches / verticalChecks,
-    horizontalSymmetry: horizontalMatches / horizontalChecks,
-    colVariation
-  };
-}
-
-function classifyByRules(f) {
-  if (f.empty) {
-    return { label: "labelNothing", reasons: ["reasonNoInk"] };
-  }
-
-  for (const rule of window.ruleDefinitions) {
-    if (ruleMatches(f, rule)) {
-      return {
-        label: rule.label,
-        reasons: rule.childExplanationKeys?.length
-          ? rule.childExplanationKeys.map(([promptKey, optionKey]) => `${t(promptKey)} ${t(optionKey)}`)
-          : (rule.childExplanation?.length ? rule.childExplanation : rule.reasons)
-      };
-    }
-  }
-
-  return {
-    label: "labelUnknown",
-    reasons: ["reasonDefaultNoMatch", "reasonDefaultFallback"]
-  };
+  loadSamples()
+    .then(() => {
+      if (!samplePool.length) {
+        aiStatusEl.textContent = "Could not load drawings.";
+        return;
+      }
+      beginRound();
+    })
+    .catch(() => {
+      aiStatusEl.textContent = "Could not load drawings.";
+    });
 }
