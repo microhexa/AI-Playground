@@ -146,22 +146,12 @@
             </div>
           </section>
           <section class="home-screen" id="level-screen" aria-label="Level menu">
-            <section class="micro-quiz" id="micro-quiz" aria-live="polite" hidden>
-              <p class="micro-quiz-question" id="micro-quiz-question" data-i18n="homeQuizQuestion1">What is this?</p>
-              <canvas class="micro-quiz-canvas" id="micro-quiz-canvas" width="180" height="180" aria-label="Quiz drawing"></canvas>
-              <div class="micro-quiz-options" role="list">
-                <button class="micro-quiz-option" type="button" data-answer="house" data-i18n="labelHouse">House</button>
-                <button class="micro-quiz-option" type="button" data-answer="sun" data-i18n="labelSun">Sun</button>
-                <button class="micro-quiz-option" type="button" data-answer="fish" data-i18n="labelFish">Fish</button>
-              </div>
-              <p class="micro-quiz-feedback" id="micro-quiz-feedback"></p>
-            </section>
             <div class="home-menu-group" id="level-menu-group">
               <button class="level-back-button" id="level-back-button" type="button" data-i18n="menuBack">Back</button>
               <div class="home-menu" id="level-menu" aria-label="AI menu">
                 <div class="menu-entry menu-entry-active" id="slot-left" role="button" tabindex="0" aria-labelledby="slot-left-label">
                   <div class="menu-entry-content">
-                    <span class="menu-entry-index" aria-hidden="true">01</span>
+                    <span class="menu-entry-index" aria-hidden="true">1</span>
                     <div class="menu-entry-copy">
                       <span class="menu-entry-title" id="slot-left-label" data-i18n="rulesTitle">Rule-based AI</span>
                       <span class="menu-entry-subtitle" data-i18n="rulesText">It follows simple rules.</span>
@@ -171,7 +161,7 @@
                 </div>
                 <div class="menu-entry locked" id="slot-center" role="button" tabindex="0" aria-labelledby="slot-center-label">
                   <div class="menu-entry-content">
-                    <span class="menu-entry-index" aria-hidden="true">02</span>
+                    <span class="menu-entry-index" aria-hidden="true">2</span>
                     <div class="menu-entry-copy">
                       <span class="menu-entry-title" id="slot-center-label" data-i18n="classifierTitle">Image classifier</span>
                       <span class="menu-entry-subtitle" data-i18n="classifierText">It spots patterns in pictures.</span>
@@ -181,7 +171,7 @@
                 </div>
                 <div class="menu-entry locked" id="slot-right" role="button" tabindex="0" aria-labelledby="slot-right-label">
                   <div class="menu-entry-content">
-                    <span class="menu-entry-index" aria-hidden="true">03</span>
+                    <span class="menu-entry-index" aria-hidden="true">3</span>
                     <div class="menu-entry-copy">
                       <span class="menu-entry-title" id="slot-right-label" data-i18n="chatbotTitle">Vision Chat</span>
                       <span class="menu-entry-subtitle" data-i18n="chatbotText">It talks like it understands.</span>
@@ -193,6 +183,78 @@
             </div>
           </section>
         </div>
+        <section class="level-intro-overlay" id="level-intro" aria-live="polite" hidden>
+          <div class="level-intro-panel">
+            <button id="level-intro-prev" class="level-intro-nav level-intro-nav-prev" type="button" aria-label="Previous page">&lt;</button>
+            <div class="level-intro-carousel" id="level-intro-carousel" aria-live="polite">
+              <section class="level-intro-page is-current" data-page-index="0" aria-label="Page 1 of 7">
+                <div class="level-intro-page-copy">
+                  <p class="level-intro-page-text" data-i18n="levelIntroPage1Text">It is easy to think something is intelligent when it speaks fluently.
+If we only look for fluent language, we may miss other forms of intelligence.</p>
+                </div>
+              </section>
+              <section class="level-intro-page" data-page-index="1" aria-label="Page 2 of 7" hidden>
+                <div class="level-intro-page-copy">
+                  <p class="level-intro-page-text" data-i18n="levelIntroPage3Text">Some types of AI do not use language.
+Let's look at one of them.</p>
+                </div>
+              </section>
+              <section class="level-intro-page" data-page-index="2" aria-label="Page 3 of 7" hidden>
+                <div class="level-intro-page-copy">
+                  <h2 class="level-intro-page-title" data-i18n="rulesTitle">Rule-based AI</h2>
+                  <p class="level-intro-page-text level-intro-page-text-structured">
+                    <span data-i18n="levelIntroPage4Line1">This type of AI is among the oldest - all the way from the 1970s!</span>
+                    <br>
+                    <span data-i18n="levelIntroPage4Line2Prefix">Back then, computers were tiny thinkers compared to now.</span>
+                    <br>
+                    <span class="level-intro-inline-sentence">
+                      <span data-i18n="levelIntroPage4Line3">They could not store much data, so apps were much simpler.</span>
+                      <canvas id="level-intro-computer-doodle" class="level-intro-inline-doodle" width="54" height="38" aria-hidden="true"></canvas>
+                    </span>
+                  </p>
+                </div>
+              </section>
+              <section class="level-intro-page" data-page-index="3" aria-label="Page 4 of 7" hidden>
+                <div class="level-intro-page-copy">
+                  <p class="level-intro-page-text" data-i18n="levelIntroPageRuleBasedFollowupText">Rule-based AI is like a very careful rule-follower.
+It checks its instructions and then makes a choice.</p>
+                </div>
+              </section>
+              <section class="level-intro-page" data-page-index="4" aria-label="Page 5 of 7" hidden>
+                <div class="level-intro-page-copy">
+                  <h2 class="level-intro-page-title" data-i18n="classifierTitle">Image classifier</h2>
+                  <p class="level-intro-page-text" data-i18n="levelIntroPageImageClassifierText">This is one way machine learning can work.
+It learns from examples and then tries to spot patterns in new pictures.</p>
+                </div>
+              </section>
+              <section class="level-intro-page" data-page-index="5" aria-label="Page 6 of 7" hidden>
+                <div class="level-intro-page-copy">
+                  <h2 class="level-intro-page-title" data-i18n="chatbotTitle">Vision Chat</h2>
+                  <p class="level-intro-page-text" data-i18n="levelIntroPageVisionChatText">Recently, a new kind of AI has become popular: the large language model.
+It can do more than recognise things in pictures - it can talk to you too.</p>
+                </div>
+              </section>
+              <section class="level-intro-page" data-page-index="6" aria-label="Page 7 of 7" hidden>
+                <div class="level-intro-page-copy">
+                  <p class="level-intro-page-text" data-i18n="levelIntroPage5Title">You are ready to explore</p>
+                  <div class="level-intro-page-actions">
+                    <button id="level-intro-button" class="level-intro-button" type="button" data-i18n="levelIntroButton">Start exploring</button>
+                  </div>
+                </div>
+              </section>
+            </div>
+            <button id="level-intro-next" class="level-intro-nav level-intro-nav-next" type="button" aria-label="Next page">&gt;</button>
+            <div class="level-intro-progress" id="level-intro-progress" aria-label="Welcome pages">
+              <span class="level-intro-progress-dot is-current" aria-hidden="true"></span>
+              <span class="level-intro-progress-dot" aria-hidden="true"></span>
+              <span class="level-intro-progress-dot" aria-hidden="true"></span>
+              <span class="level-intro-progress-dot" aria-hidden="true"></span>
+              <span class="level-intro-progress-dot" aria-hidden="true"></span>
+              <span class="level-intro-progress-dot" aria-hidden="true"></span>
+              <span class="level-intro-progress-dot" aria-hidden="true"></span>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   </div>

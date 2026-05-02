@@ -8,9 +8,15 @@ const PROGRESS_KEYS = ["imageClassifierUnlocked", "chatbotUnlocked"];
 const LANGUAGE_STORAGE_KEY = "lang";
 const IMAGE_CLASSIFIER_UNLOCK_KEY = "imageClassifierUnlocked";
 const CHATBOT_UNLOCK_KEY = "chatbotUnlocked";
-const NEW_SESSION_QUIZ_KEY = "showLevelIntroQuiz";
 const PENDING_NEW_SESSION_RESET_KEY = "pendingNewSessionReset";
 const SKIP_HOME_TRANSITION_KEY = "skipHomeTransition";
+const LEVEL_INTRO_TYPED_PAGE_STORAGE_PREFIX = "levelIntroTypedPage";
+const HOME_SCREEN_TRANSITION_MS = 420;
+const LEVEL_INTRO_FADE_MS = 220;
+const LEVEL_INTRO_TYPE_DELAY_MS = 180;
+const LEVEL_INTRO_TYPE_SPEED_MS = 32;
+const LEVEL_INTRO_COMPUTER_ANIMATION_NAME = "intro_computer";
+const LEVEL_INTRO_COMPUTER_PAGE_INDEX = 2;
 const HOME_QUIZ_DATASET = "./images/full_binary_house.bin";
 const HOME_QUIZ_DRAWING_INDEXES = [2, 61];
 const HOME_QUIZ_CORRECT_ANSWER = "house";
@@ -32,6 +38,17 @@ const languageMenuSubtitle = document.getElementById("menu-language-subtitle");
 const creditsMenu = document.getElementById("menu-credits");
 const creditsBackButton = document.getElementById("credits-back-button");
 const levelBackButton = document.getElementById("level-back-button");
+const levelIntro = document.getElementById("level-intro");
+const levelIntroButton = document.getElementById("level-intro-button");
+const levelIntroButtonActions = levelIntroButton?.closest(".level-intro-page-actions") || null;
+const levelIntroPrevButton = document.getElementById("level-intro-prev");
+const levelIntroNextButton = document.getElementById("level-intro-next");
+const levelIntroPages = Array.from(document.querySelectorAll(".level-intro-page"));
+const levelIntroProgressDots = Array.from(document.querySelectorAll(".level-intro-progress-dot"));
+const levelIntroTypingPageIndexes = new Set([0, 1, 2, 3, 4, 5, 6]);
+const LEVEL_INTRO_FINAL_PAGE_INDEX = 6;
+const levelIntroComputerDoodle = document.getElementById("level-intro-computer-doodle");
+const levelMenu = document.getElementById("level-menu");
 const homeScreens = document.getElementById("home-screens");
 const homeFocus = document.querySelector(".home-focus");
 const startRuleBasedBtn = document.getElementById("start-rule-based");
@@ -55,6 +72,15 @@ let homeQuizDrawings = [];
 let homeQuizLoaded = false;
 let homeQuizLoadingPromise = null;
 let menuDoodleAnimationFrame = null;
+let levelIntroTimer = null;
+let levelIntroHideTimer = null;
+let levelIntroPageIndex = 0;
+let levelIntroTypingTimer = null;
+let levelIntroTypingPageIndex = null;
+let levelIntroComputerDoodleAnimationFrame = null;
+let levelIntroComputerDoodleData = null;
+let levelIntroComputerDoodlePlayed = false;
+let shouldHighlightRuleCardAfterIntro = false;
 const menuDoodleState = [];
 const menuDoodleCache = new Map();
 const shouldSkipInitialHomeTransition = sessionStorage.getItem(SKIP_HOME_TRANSITION_KEY) === "true";
@@ -66,6 +92,11 @@ if (shouldSkipInitialHomeTransition) {
 function updateLanguageButtons() {
     if (enBtn) enBtn.classList.toggle("active", currentLang === "en");
     if (daBtn) daBtn.classList.toggle("active", currentLang === "da");
+}
+
+function setRuleCardHighlight(active) {
+    if (!ruleCard) return;
+    ruleCard.classList.toggle("journey-node-highlighted", active);
 }
 
 function setStoredHomeScreen(mode) {
@@ -81,8 +112,443 @@ function hasPendingNewSessionReset() {
     return sessionStorage.getItem(PENDING_NEW_SESSION_RESET_KEY) === "true";
 }
 
-function shouldShowLevelQuiz() {
-    return sessionStorage.getItem(NEW_SESSION_QUIZ_KEY) === "true";
+function clearLevelIntroTimers() {
+    if (levelIntroTimer) {
+        window.clearTimeout(levelIntroTimer);
+        levelIntroTimer = null;
+    }
+    if (levelIntroHideTimer) {
+        window.clearTimeout(levelIntroHideTimer);
+        levelIntroHideTimer = null;
+    }
+}
+
+function clearLevelIntroTyping(restoreFullText = false) {
+    if (levelIntroTypingTimer) {
+        window.clearTimeout(levelIntroTypingTimer);
+        levelIntroTypingTimer = null;
+    }
+
+    levelIntroTypingPageIndex = null;
+
+    levelIntroPages.forEach(page => {
+        const textElement = page.querySelector(".level-intro-page-text");
+        if (!textElement) return;
+        const liveSpan = textElement.querySelector(".level-intro-page-text-live");
+
+        if (restoreFullText) {
+            getLevelIntroTypingTargets(Number(page.dataset.pageIndex)).forEach(target => {
+                if (target.element && target.fullText !== undefined) {
+                    target.element.textContent = target.fullText;
+                }
+            });
+        }
+
+        liveSpan?.remove();
+        textElement.classList.remove("is-typing");
+        textElement.classList.remove("is-typing-visible");
+    });
+
+    if (levelIntroComputerDoodle) {
+        levelIntroComputerDoodle.classList.remove("is-hidden");
+        delete levelIntroComputerDoodle.dataset.animationStartedAt;
+    }
+
+    updateLevelIntroButtonVisibility();
+}
+
+function getLevelIntroTypingStorageKey(pageIndex) {
+    return `${LEVEL_INTRO_TYPED_PAGE_STORAGE_PREFIX}${pageIndex}`;
+}
+
+function resetLevelIntroTypingState() {
+    levelIntroTypingPageIndexes.forEach(pageIndex => {
+        sessionStorage.removeItem(getLevelIntroTypingStorageKey(pageIndex));
+    });
+    levelIntroComputerDoodlePlayed = false;
+    stopLevelIntroComputerDoodleAnimation();
+    if (levelIntroComputerDoodle) {
+        const ctx = levelIntroComputerDoodle.getContext("2d");
+        ctx?.clearRect(0, 0, levelIntroComputerDoodle.width, levelIntroComputerDoodle.height);
+        levelIntroComputerDoodle.classList.add("is-hidden");
+        delete levelIntroComputerDoodle.dataset.animationStartedAt;
+    }
+}
+
+function getLevelIntroPageTextElement(pageIndex) {
+    return levelIntroPages[pageIndex]?.querySelector(".level-intro-page-text") || null;
+}
+
+function stopLevelIntroComputerDoodleAnimation() {
+    if (levelIntroComputerDoodleAnimationFrame) {
+        window.cancelAnimationFrame(levelIntroComputerDoodleAnimationFrame);
+        levelIntroComputerDoodleAnimationFrame = null;
+    }
+}
+
+function getLevelIntroTypingTargets(pageIndex) {
+    if (pageIndex === LEVEL_INTRO_COMPUTER_PAGE_INDEX) {
+        const line1 = levelIntroPages[pageIndex]?.querySelector('[data-i18n="levelIntroPage4Line1"]');
+        const line2 = levelIntroPages[pageIndex]?.querySelector('[data-i18n="levelIntroPage4Line2Prefix"]');
+        const line3 = levelIntroPages[pageIndex]?.querySelector('[data-i18n="levelIntroPage4Line3"]');
+
+        return [
+            {
+                element: line1,
+                fullText: line1?.dataset.i18n ? t(line1.dataset.i18n) : line1?.textContent || "",
+            },
+            {
+                element: line2,
+                fullText: line2?.dataset.i18n ? t(line2.dataset.i18n) : line2?.textContent || "",
+            },
+            {
+                element: line3,
+                fullText: line3?.dataset.i18n ? t(line3.dataset.i18n) : line3?.textContent || "",
+            },
+        ].filter(target => target.element);
+    }
+
+    const textElement = getLevelIntroPageTextElement(pageIndex);
+    if (!textElement) return [];
+
+    return [{
+        element: textElement,
+        fullText: textElement.dataset.i18n ? t(textElement.dataset.i18n) : textElement.textContent || "",
+    }];
+}
+
+function ensureLevelIntroTypingLiveSpan(textElement) {
+    let liveSpan = textElement.querySelector(".level-intro-page-text-live");
+    if (!liveSpan) {
+        liveSpan = document.createElement("span");
+        liveSpan.className = "level-intro-page-text-live";
+        textElement.appendChild(liveSpan);
+    }
+    return liveSpan;
+}
+
+function escapeHtml(value) {
+    return value
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;");
+}
+
+function setTypingTargetProgress(targetElement, fullText, visibleCount) {
+    const safeVisibleCount = Math.max(0, Math.min(fullText.length, visibleCount));
+    const visibleText = escapeHtml(fullText.slice(0, safeVisibleCount)).replaceAll("\n", "<br>");
+    const hiddenText = escapeHtml(fullText.slice(safeVisibleCount)).replaceAll("\n", "<br>");
+
+    if (!hiddenText) {
+        targetElement.textContent = fullText;
+        return;
+    }
+
+    targetElement.innerHTML = `${visibleText}<span class="level-intro-page-text-hidden-tail">${hiddenText}</span>`;
+}
+
+function isLevelIntroTypingActive(pageIndex = levelIntroPageIndex) {
+    const textElement = getLevelIntroPageTextElement(pageIndex);
+    return Boolean(textElement && textElement.classList.contains("is-typing"));
+}
+
+function updateLevelIntroButtonVisibility() {
+    if (!levelIntroButtonActions) return;
+
+    const shouldHide = levelIntroPageIndex === LEVEL_INTRO_FINAL_PAGE_INDEX && isLevelIntroTypingActive(LEVEL_INTRO_FINAL_PAGE_INDEX);
+    levelIntroButtonActions.classList.toggle("is-hidden", shouldHide);
+}
+
+function finishLevelIntroTypingInstantly(pageIndex = levelIntroPageIndex) {
+    const textElement = getLevelIntroPageTextElement(pageIndex);
+    if (!textElement || !isLevelIntroTypingActive(pageIndex)) return false;
+
+    if (levelIntroTypingTimer) {
+        window.clearTimeout(levelIntroTypingTimer);
+        levelIntroTypingTimer = null;
+    }
+
+    const fullText = syncLevelIntroPageText(pageIndex);
+    getLevelIntroTypingTargets(pageIndex).forEach(target => {
+        if (pageIndex === LEVEL_INTRO_COMPUTER_PAGE_INDEX) {
+            target.element.textContent = target.fullText;
+        }
+    });
+    if (pageIndex !== LEVEL_INTRO_COMPUTER_PAGE_INDEX) {
+        textElement.textContent = fullText;
+    }
+    textElement.classList.remove("is-typing");
+    textElement.classList.remove("is-typing-visible");
+    levelIntroTypingPageIndex = null;
+    sessionStorage.setItem(getLevelIntroTypingStorageKey(pageIndex), "true");
+    updateLevelIntroButtonVisibility();
+    if (pageIndex === LEVEL_INTRO_COMPUTER_PAGE_INDEX && levelIntroComputerDoodle) {
+        void startLevelIntroComputerDoodleAnimation();
+    }
+    return true;
+}
+
+function syncLevelIntroPageText(pageIndex) {
+    const textElement = getLevelIntroPageTextElement(pageIndex);
+    if (!textElement) return "";
+
+    const targets = getLevelIntroTypingTargets(pageIndex);
+    const fullText = targets.map(target => target.fullText).join("\n");
+    textElement.dataset.fullText = fullText;
+    return fullText;
+}
+
+async function ensureLevelIntroComputerDoodleData() {
+    if (levelIntroComputerDoodleData) return levelIntroComputerDoodleData;
+
+    const drawings = await loadMenuDoodleSet(LEVEL_INTRO_COMPUTER_ANIMATION_NAME);
+    const drawing = drawings[0]?.drawing;
+    if (!drawing) {
+        throw new Error("Intro computer doodle data is missing.");
+    }
+
+    levelIntroComputerDoodleData = drawing;
+    return drawing;
+}
+
+async function startLevelIntroComputerDoodleAnimation() {
+    if (
+        !levelIntroComputerDoodle ||
+        levelIntroComputerDoodlePlayed ||
+        levelIntroPageIndex !== LEVEL_INTRO_COMPUTER_PAGE_INDEX ||
+        !levelIntro?.classList.contains("is-visible")
+    ) {
+        return;
+    }
+
+    levelIntroComputerDoodlePlayed = true;
+    levelIntroComputerDoodle.classList.remove("is-hidden");
+
+    try {
+        const drawing = await ensureLevelIntroComputerDoodleData();
+        const { maxTimestamp, playbackDuration } = getMenuDoodleDuration(drawing);
+        stopLevelIntroComputerDoodleAnimation();
+
+        const render = now => {
+            if (levelIntroPageIndex !== LEVEL_INTRO_COMPUTER_PAGE_INDEX || !levelIntro?.classList.contains("is-visible")) {
+                stopLevelIntroComputerDoodleAnimation();
+                return;
+            }
+
+            if (!levelIntroComputerDoodle.dataset.animationStartedAt) {
+                levelIntroComputerDoodle.dataset.animationStartedAt = String(now);
+            }
+
+            const startedAt = Number(levelIntroComputerDoodle.dataset.animationStartedAt);
+            const cycleElapsed = Math.max(0, now - startedAt);
+            const acceleratedElapsed = cycleElapsed * 4;
+            const effectiveElapsed = maxTimestamp === 0
+                ? 0
+                : (Math.min(acceleratedElapsed, playbackDuration) / playbackDuration) * maxTimestamp;
+
+            drawMenuDoodleFrame(levelIntroComputerDoodle, drawing, effectiveElapsed, {
+                padding: 3,
+                lineWidth: 2.2,
+                strokeStyle: "rgba(27, 38, 49, 0.95)",
+            });
+
+            if (acceleratedElapsed >= playbackDuration) {
+                delete levelIntroComputerDoodle.dataset.animationStartedAt;
+                stopLevelIntroComputerDoodleAnimation();
+                return;
+            }
+
+            levelIntroComputerDoodleAnimationFrame = window.requestAnimationFrame(render);
+        };
+
+        delete levelIntroComputerDoodle.dataset.animationStartedAt;
+        levelIntroComputerDoodleAnimationFrame = window.requestAnimationFrame(render);
+    } catch (error) {
+        console.warn("Unable to animate intro computer doodle", error);
+    }
+}
+
+function playLevelIntroTyping() {
+    if (!levelIntro?.classList.contains("is-visible")) {
+        clearLevelIntroTyping(true);
+        return;
+    }
+
+    const activePageIndex = levelIntroPageIndex;
+    const textElement = getLevelIntroPageTextElement(activePageIndex);
+
+    if (!textElement || !levelIntroTypingPageIndexes.has(activePageIndex) || !levelIntroPages[activePageIndex]?.classList.contains("is-current")) {
+        clearLevelIntroTyping(true);
+        return;
+    }
+
+    const fullText = syncLevelIntroPageText(activePageIndex);
+
+    if (sessionStorage.getItem(getLevelIntroTypingStorageKey(activePageIndex)) === "true") {
+        clearLevelIntroTyping(true);
+        return;
+    }
+
+    clearLevelIntroTyping();
+    const targets = getLevelIntroTypingTargets(activePageIndex);
+    let liveSpan = null;
+    if (activePageIndex === LEVEL_INTRO_COMPUTER_PAGE_INDEX) {
+        targets.forEach(target => {
+            setTypingTargetProgress(target.element, target.fullText, 0);
+        });
+    } else {
+        textElement.dataset.fullText = fullText;
+        textElement.textContent = "";
+        liveSpan = ensureLevelIntroTypingLiveSpan(textElement);
+        setTypingTargetProgress(liveSpan, fullText, 0);
+        targets[0].element = liveSpan;
+    }
+    textElement.classList.add("is-typing");
+    levelIntroTypingPageIndex = activePageIndex;
+    updateLevelIntroButtonVisibility();
+
+    if (activePageIndex === LEVEL_INTRO_COMPUTER_PAGE_INDEX && levelIntroComputerDoodle) {
+        levelIntroComputerDoodle.classList.add("is-hidden");
+        const ctx = levelIntroComputerDoodle.getContext("2d");
+        ctx?.clearRect(0, 0, levelIntroComputerDoodle.width, levelIntroComputerDoodle.height);
+        delete levelIntroComputerDoodle.dataset.animationStartedAt;
+    }
+
+    window.requestAnimationFrame(() => {
+        if (textElement) {
+            textElement.classList.add("is-typing-visible");
+        }
+    });
+
+    let targetIndex = 0;
+    let characterIndex = 0;
+
+    const typeNextCharacter = () => {
+        if (!textElement) return;
+
+        if (!levelIntroPages[activePageIndex]?.classList.contains("is-current") || !levelIntro?.classList.contains("is-visible")) {
+            clearLevelIntroTyping(true);
+            return;
+        }
+
+        const activeTarget = targets[targetIndex];
+        if (!activeTarget) {
+            levelIntroTypingTimer = null;
+            levelIntroTypingPageIndex = null;
+            sessionStorage.setItem(getLevelIntroTypingStorageKey(activePageIndex), "true");
+            if (activePageIndex !== LEVEL_INTRO_COMPUTER_PAGE_INDEX) {
+                textElement.textContent = fullText;
+            }
+            textElement.classList.remove("is-typing");
+            textElement.classList.remove("is-typing-visible");
+            updateLevelIntroButtonVisibility();
+            if (activePageIndex === LEVEL_INTRO_COMPUTER_PAGE_INDEX && levelIntroComputerDoodle) {
+                void startLevelIntroComputerDoodleAnimation();
+            }
+            return;
+        }
+
+        characterIndex += 1;
+        setTypingTargetProgress(activeTarget.element, activeTarget.fullText, characterIndex);
+
+        if (characterIndex < activeTarget.fullText.length) {
+            levelIntroTypingTimer = window.setTimeout(typeNextCharacter, LEVEL_INTRO_TYPE_SPEED_MS);
+            return;
+        }
+
+        targetIndex += 1;
+        characterIndex = 0;
+        levelIntroTypingTimer = window.setTimeout(typeNextCharacter, LEVEL_INTRO_TYPE_SPEED_MS);
+    };
+
+    levelIntroTypingTimer = window.setTimeout(typeNextCharacter, LEVEL_INTRO_TYPE_DELAY_MS);
+}
+
+function hideLevelIntro(immediate = false) {
+    clearLevelIntroTimers();
+    clearLevelIntroTyping(true);
+    stopLevelIntroComputerDoodleAnimation();
+
+    if (levelMenu) {
+        levelMenu.setAttribute("aria-hidden", "false");
+    }
+
+    if (!levelIntro) return;
+
+    levelIntro.classList.remove("is-visible");
+
+    if (immediate) {
+        levelIntro.hidden = true;
+        return;
+    }
+
+    levelIntroHideTimer = window.setTimeout(() => {
+        levelIntro.hidden = true;
+        levelIntroHideTimer = null;
+    }, LEVEL_INTRO_FADE_MS);
+}
+
+function setLevelIntroPage(nextIndex) {
+    if (!levelIntroPages.length) return;
+
+    const clampedIndex = Math.max(0, Math.min(levelIntroPages.length - 1, nextIndex));
+    levelIntroPageIndex = clampedIndex;
+
+    levelIntroPages.forEach((page, index) => {
+        const isCurrent = index === clampedIndex;
+        page.hidden = !isCurrent;
+        page.classList.toggle("is-current", isCurrent);
+    });
+
+    levelIntroProgressDots.forEach((dot, index) => {
+        dot.classList.toggle("is-current", index === clampedIndex);
+        dot.classList.toggle("is-complete", index < clampedIndex);
+    });
+
+    if (levelIntroPrevButton) {
+        levelIntroPrevButton.disabled = clampedIndex === 0;
+    }
+
+    if (levelIntroNextButton) {
+        levelIntroNextButton.disabled = clampedIndex === levelIntroPages.length - 1;
+    }
+
+    if (levelIntroTypingPageIndexes.has(clampedIndex)) {
+        playLevelIntroTyping();
+    } else {
+        clearLevelIntroTyping(true);
+    }
+
+    updateLevelIntroButtonVisibility();
+}
+
+function resetLevelIntroPages() {
+    setLevelIntroPage(0);
+}
+
+function revealLevelIntro() {
+    if (!levelIntro || homeMenuMode !== LEVEL_MENU_MODE) return;
+
+    clearLevelIntroTimers();
+    resetLevelIntroPages();
+    levelIntro.hidden = false;
+
+    if (levelMenu) {
+        levelMenu.setAttribute("aria-hidden", "true");
+    }
+
+    window.requestAnimationFrame(() => {
+        levelIntro.classList.add("is-visible");
+        playLevelIntroTyping();
+    });
+}
+
+function queueLevelIntroReveal() {
+    hideLevelIntro(true);
+    levelIntroTimer = window.setTimeout(() => {
+        levelIntroTimer = null;
+        revealLevelIntro();
+    }, HOME_SCREEN_TRANSITION_MS);
 }
 
 function updateLanguageMenuLabel() {
@@ -174,16 +640,26 @@ function parseQuickDrawBinary(buffer, limit) {
     return drawings;
 }
 
-function drawQuickDrawToCanvas(canvas, drawing) {
+function drawQuickDrawToCanvas(canvas, drawing, options = {}) {
     if (!canvas || !drawing) return;
 
     const ctx = canvas.getContext("2d");
-    ctx.fillStyle = "#f6f6f6";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.strokeStyle = "#1b2631";
+    const {
+        background = "#f6f6f6",
+        strokeStyle = "#1b2631",
+        lineWidth = 5,
+        padding = 18,
+    } = options;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (background) {
+        ctx.fillStyle = background;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    ctx.strokeStyle = strokeStyle;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    ctx.lineWidth = 5;
+    ctx.lineWidth = lineWidth;
 
     const points = [];
     drawing.forEach(stroke => {
@@ -200,7 +676,6 @@ function drawQuickDrawToCanvas(canvas, drawing) {
     const maxY = Math.max(...points.map(point => point.y));
     const boxWidth = Math.max(1, maxX - minX);
     const boxHeight = Math.max(1, maxY - minY);
-    const padding = 18;
     const drawableWidth = canvas.width - padding * 2;
     const drawableHeight = canvas.height - padding * 2;
     const scale = Math.min(drawableWidth / boxWidth, drawableHeight / boxHeight);
@@ -244,11 +719,16 @@ function getMenuDoodleDuration(drawing) {
     };
 }
 
-function drawMenuDoodleFrame(canvas, drawing, elapsed) {
+function drawMenuDoodleFrame(canvas, drawing, elapsed, options = {}) {
     if (!canvas || !drawing) return;
 
     const ctx = canvas.getContext("2d");
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const {
+        strokeStyle = "rgba(27, 38, 49, 0.88)",
+        lineWidth = 4,
+        padding = 24,
+    } = options;
 
     const points = [];
     drawing.forEach(stroke => {
@@ -267,17 +747,16 @@ function drawMenuDoodleFrame(canvas, drawing, elapsed) {
     const maxY = Math.max(...points.map(point => point.y));
     const boxWidth = Math.max(1, maxX - minX);
     const boxHeight = Math.max(1, maxY - minY);
-    const padding = 24;
     const drawableWidth = canvas.width - padding * 2;
     const drawableHeight = canvas.height - padding * 2;
     const scale = Math.min(drawableWidth / boxWidth, drawableHeight / boxHeight);
     const offsetX = (canvas.width - boxWidth * scale) / 2;
     const offsetY = (canvas.height - boxHeight * scale) / 2;
 
-    ctx.strokeStyle = "rgba(27, 38, 49, 0.88)";
+    ctx.strokeStyle = strokeStyle;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    ctx.lineWidth = 4;
+    ctx.lineWidth = lineWidth;
 
     drawing.forEach(stroke => {
         const xs = stroke[0] || [];
@@ -448,9 +927,7 @@ function resetHomeQuizState() {
         button.hidden = false;
         button.classList.remove("is-correct");
     });
-    if (ruleCard) {
-        ruleCard.classList.remove("journey-node-highlighted");
-    }
+    setRuleCardHighlight(false);
 }
 
 async function ensureHomeQuizLoaded() {
@@ -481,18 +958,22 @@ async function ensureHomeQuizLoaded() {
     }
 }
 
-async function updateLevelQuizVisibility() {
-    if (!quizContainer || !homeFocus) return;
+function updateLevelIntroVisibility() {
+    if (quizContainer) {
+        quizContainer.hidden = true;
+    }
 
-    const shouldShow = homeMenuMode === LEVEL_MENU_MODE && shouldShowLevelQuiz();
-    quizContainer.hidden = !shouldShow;
-    homeFocus.classList.toggle("quiz-hidden", !shouldShow);
+    if (homeFocus) {
+        homeFocus.classList.toggle("quiz-hidden", true);
+    }
 
-    if (!shouldShow) return;
+    if (homeMenuMode !== LEVEL_MENU_MODE) {
+        hideLevelIntro(true);
+        return;
+    }
 
-    await ensureHomeQuizLoaded();
-    if (homeQuizLoaded) {
-        renderHomeQuizStep();
+    if (levelMenu) {
+        levelMenu.setAttribute("aria-hidden", "false");
     }
 }
 
@@ -529,6 +1010,13 @@ function updateLevelCardState() {
 }
 
 function showHomeMenu(mode) {
+    if (mode !== LEVEL_MENU_MODE) {
+        shouldHighlightRuleCardAfterIntro = false;
+        setRuleCardHighlight(false);
+    } else if (!shouldHighlightRuleCardAfterIntro) {
+        setRuleCardHighlight(false);
+    }
+
     setStoredHomeScreen(mode);
 
     if (homeScreens) {
@@ -549,14 +1037,16 @@ function showHomeMenu(mode) {
         updateLevelCardState();
     }
 
-    void updateLevelQuizVisibility();
+    updateLevelIntroVisibility();
 }
 
 function startNewSession() {
     resetHomeQuizState();
-    sessionStorage.removeItem(NEW_SESSION_QUIZ_KEY);
+    resetLevelIntroTypingState();
+    shouldHighlightRuleCardAfterIntro = false;
     sessionStorage.setItem(PENDING_NEW_SESSION_RESET_KEY, "true");
     showHomeMenu(LEVEL_MENU_MODE);
+    queueLevelIntroReveal();
 }
 
 function clearProgressForNewSession() {
@@ -647,6 +1137,7 @@ if (enBtn) {
         updateLanguageButtons();
         applyTranslations();
         applyHomeQuizTranslations();
+        playLevelIntroTyping();
     };
 }
 
@@ -657,6 +1148,7 @@ if (daBtn) {
         updateLanguageButtons();
         applyTranslations();
         applyHomeQuizTranslations();
+        playLevelIntroTyping();
     };
 }
 
@@ -688,27 +1180,33 @@ if (homeMenu) {
 
 if (startRuleBasedBtn) {
     startRuleBasedBtn.onclick = () => {
+        shouldHighlightRuleCardAfterIntro = false;
+        setRuleCardHighlight(false);
         clearProgressForNewSession();
         sessionStorage.setItem(HOME_SCREEN_KEY, LEVEL_MENU_MODE);
-        sessionStorage.removeItem(NEW_SESSION_QUIZ_KEY);
+        hideLevelIntro(true);
         window.location.href = "rule-based-ai.html";
     };
 }
 
 if (startImageClassifierBtn) {
     startImageClassifierBtn.onclick = () => {
+        shouldHighlightRuleCardAfterIntro = false;
+        setRuleCardHighlight(false);
         clearProgressForNewSession();
         sessionStorage.setItem(HOME_SCREEN_KEY, LEVEL_MENU_MODE);
-        sessionStorage.removeItem(NEW_SESSION_QUIZ_KEY);
+        hideLevelIntro(true);
         window.location.href = "image-classifier.html";
     };
 }
 
 if (startChatbotBtn) {
     startChatbotBtn.onclick = () => {
+        shouldHighlightRuleCardAfterIntro = false;
+        setRuleCardHighlight(false);
         clearProgressForNewSession();
         sessionStorage.setItem(HOME_SCREEN_KEY, LEVEL_MENU_MODE);
-        sessionStorage.removeItem(NEW_SESSION_QUIZ_KEY);
+        hideLevelIntro(true);
         window.location.href = "chatbot.html";
     };
 }
@@ -719,7 +1217,7 @@ attachCardNavigation(chatbotCard, startChatbotBtn);
 
 attachMenuAction(continueMenu, () => {
     if (!hasSavedProgress()) return;
-    sessionStorage.removeItem(NEW_SESSION_QUIZ_KEY);
+    hideLevelIntro(true);
     sessionStorage.removeItem(PENDING_NEW_SESSION_RESET_KEY);
     showHomeMenu(LEVEL_MENU_MODE);
 });
@@ -732,6 +1230,7 @@ attachMenuAction(languageMenu, () => {
     updateLanguageButtons();
     applyTranslations();
     applyHomeQuizTranslations();
+    playLevelIntroTyping();
 });
 
 attachMenuAction(creditsMenu, () => {
@@ -746,9 +1245,35 @@ if (creditsBackButton) {
 
 if (levelBackButton) {
     levelBackButton.onclick = () => {
-        sessionStorage.removeItem(NEW_SESSION_QUIZ_KEY);
+        shouldHighlightRuleCardAfterIntro = false;
+        setRuleCardHighlight(false);
+        hideLevelIntro(true);
         sessionStorage.removeItem(PENDING_NEW_SESSION_RESET_KEY);
         showHomeMenu(SESSION_MENU_MODE);
+    };
+}
+
+if (levelIntroButton) {
+    levelIntroButton.onclick = () => {
+        shouldHighlightRuleCardAfterIntro = true;
+        hideLevelIntro();
+        setRuleCardHighlight(true);
+    };
+}
+
+if (levelIntroPrevButton) {
+    levelIntroPrevButton.onclick = () => {
+        setLevelIntroPage(levelIntroPageIndex - 1);
+    };
+}
+
+if (levelIntroNextButton) {
+    levelIntroNextButton.onclick = () => {
+        if (finishLevelIntroTypingInstantly()) {
+            return;
+        }
+
+        setLevelIntroPage(levelIntroPageIndex + 1);
     };
 }
 
@@ -757,7 +1282,6 @@ if (returnBtn) {
         if (currentPath.endsWith("rule-based-ai.html")) {
             localStorage.setItem(IMAGE_CLASSIFIER_UNLOCK_KEY, "true");
             sessionStorage.setItem(HOME_SCREEN_KEY, LEVEL_MENU_MODE);
-            sessionStorage.removeItem(NEW_SESSION_QUIZ_KEY);
             sessionStorage.setItem(SKIP_HOME_TRANSITION_KEY, "true");
             window.location.href = "index.html";
             return;
@@ -766,7 +1290,6 @@ if (returnBtn) {
         if (currentPath.endsWith("image-classifier.html")) {
             localStorage.setItem(CHATBOT_UNLOCK_KEY, "true");
             sessionStorage.setItem(HOME_SCREEN_KEY, LEVEL_MENU_MODE);
-            sessionStorage.removeItem(NEW_SESSION_QUIZ_KEY);
             sessionStorage.setItem(SKIP_HOME_TRANSITION_KEY, "true");
             window.location.href = "index.html";
             return;
@@ -780,6 +1303,11 @@ if (returnBtn) {
 updatePageMeta();
 updateLanguageButtons();
 applyTranslations();
+levelIntroTypingPageIndexes.forEach(pageIndex => {
+    syncLevelIntroPageText(pageIndex);
+});
+hideLevelIntro(true);
+resetLevelIntroPages();
 void initializeMenuDoodles();
 
 if (isHomePage) {
@@ -790,6 +1318,7 @@ if (isHomePage) {
         homeMenuMode = SESSION_MENU_MODE;
     }
     showHomeMenu(homeMenuMode);
+    hideLevelIntro(true);
     if (homeScreens && shouldSkipInitialHomeTransition) {
         window.requestAnimationFrame(() => {
             window.requestAnimationFrame(() => {
