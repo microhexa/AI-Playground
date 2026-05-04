@@ -48,15 +48,20 @@
 
     const classPicker = document.getElementById("class-picker");
     const doodleBrowser = document.getElementById("doodle-browser");
+    const classStepEl = document.getElementById("classifier-class-step");
+    const doodleStepEl = document.getElementById("classifier-doodle-step");
     const selectionCountEl = document.getElementById("selection-count");
     const selectionHintEl = document.getElementById("selection-hint");
+    const trainingReviewCountEl = document.getElementById("training-review-count");
+    const trainingReviewHintEl = document.getElementById("training-review-hint");
     const clearSelectionBtn = document.getElementById("clear-selection-btn");
     const trainModelBtn = document.getElementById("train-model-btn");
-    const trainingTabBtn = document.getElementById("training-tab");
-    const testingTabBtn = document.getElementById("testing-tab");
+    const toDoodlesBtn = document.getElementById("to-doodles-btn");
+    const toTrainingBtn = document.getElementById("to-training-btn");
+    const toTestingBtn = document.getElementById("to-testing-btn");
+    const backToClassesBtn = document.getElementById("back-to-classes-btn");
+    const backToDoodlesBtn = document.getElementById("back-to-doodles-btn");
     const trainingPopup = document.getElementById("training-popup");
-    const trainingPanel = document.getElementById("training-panel");
-    const testingPanel = document.getElementById("testing-panel");
     const trainingProgressEl = document.getElementById("training-progress");
     const trainingStatusEl = document.getElementById("training-status");
     const trainingPercentEl = document.getElementById("training-percent");
@@ -78,7 +83,11 @@
     const testingModelTrainedAtEl = document.getElementById("testing-model-trained-at");
     const predictionLabelEl = document.getElementById("prediction-label");
     const predictionConfidenceEl = document.getElementById("prediction-confidence");
-    const classifierTabBar = document.getElementById("classifier-tab-bar");
+    const classifierJourney = document.getElementById("classifier-journey");
+    const classifierJourneySteps = Array.from(document.querySelectorAll("[data-step-target]"));
+    const classifierJourneyTrack = document.querySelector(".classifier-journey-steps");
+    const classifierStepTrack = document.getElementById("classifier-step-track");
+    const classifierScreens = Array.from(document.querySelectorAll(".classifier-screen"));
 
     const canvas = document.getElementById("draw");
     const ctx = canvas.getContext("2d");
@@ -98,6 +107,7 @@
     let trainingStatusKey = "imageClassifierPreparingData";
     let predictionPlaceholderKey = "imageClassifierTrainAndDraw";
     let canvasHelperKey = "imageClassifierTrainAndDraw";
+    let currentStepIndex = 0;
 
     function getSectionLabel(section) {
       return t(section.labelKey);
@@ -116,7 +126,7 @@
 
     window.applyImageClassifierTranslations = function applyImageClassifierTranslations() {
       updateDocumentLanguage();
-      classifierTabBar.setAttribute("aria-label", t("imageClassifierAriaSteps"));
+      classifierJourney.setAttribute("aria-label", t("imageClassifierAriaSteps"));
       resetBtn.setAttribute("aria-label", t("imageClassifierReset"));
       undoBtn.setAttribute("aria-label", t("imageClassifierUndo"));
       redoBtn.setAttribute("aria-label", t("imageClassifierRedo"));
@@ -144,7 +154,7 @@
     resetCanvas();
     setPredictionPlaceholder();
     setCanvasAvailability(false);
-    setActiveTab("training");
+    goToStep(0, { force: true });
     applyTranslations();
 
     canvas.addEventListener("mousedown", startDrawing);
@@ -157,11 +167,13 @@
     document.getElementById("classify-btn").addEventListener("click", classifyDrawing);
     trainModelBtn.addEventListener("click", trainModel);
     clearSelectionBtn.addEventListener("click", clearSelection);
-    trainingTabBtn.addEventListener("click", () => setActiveTab("training"));
-    testingTabBtn.addEventListener("click", () => {
-      if (!testingTabBtn.disabled) {
-        setActiveTab("testing");
-      }
+    toDoodlesBtn.addEventListener("click", () => goToStep(1));
+    toTrainingBtn.addEventListener("click", () => goToStep(2));
+    toTestingBtn.addEventListener("click", () => goToStep(3));
+    backToClassesBtn.addEventListener("click", () => goToStep(0, { force: true }));
+    backToDoodlesBtn.addEventListener("click", () => goToStep(1, { force: true }));
+    classifierJourneySteps.forEach((button) => {
+      button.addEventListener("click", () => goToStep(Number(button.dataset.stepTarget)));
     });
 
     function renderClassOptions() {
@@ -211,6 +223,8 @@
     }
 
     function toggleClassSelection(classId) {
+      invalidateTrainedModel();
+
       if (selectedClasses.has(classId)) {
         selectedClasses.delete(classId);
         [...selectedDoodles].forEach((sampleId) => {
@@ -268,6 +282,8 @@
     }
 
     function toggleDoodle(id) {
+      invalidateTrainedModel();
+
       if (selectedDoodles.has(id)) {
         selectedDoodles.delete(id);
       } else {
@@ -279,6 +295,7 @@
     }
 
     function clearSelection() {
+      invalidateTrainedModel();
       selectedClasses.clear();
       selectedDoodles.clear();
       renderClassOptions();
@@ -287,39 +304,148 @@
     }
 
     function updateSelectionUI() {
-      const classCount = selectedClasses.size;
-      const doodleCount = selectedDoodles.size;
-      const labelGroups = getSelectedLabelGroups();
-      const hasSamplesForEachClass = classCount > 0 && labelGroups.length === classCount;
-
-      selectionCountEl.textContent = formatMessage("imageClassifierSelectedSummary", {
+      const {
+        classCount,
+        doodleCount,
+        hasEnoughClasses,
+        hasSamplesForEachClass
+      } = getSelectionState();
+      const summaryText = formatMessage("imageClassifierSelectedSummary", {
         classes: classCount,
         doodles: doodleCount
       });
-      selectionHintEl.textContent = classCount < 2
+      const hintText = !hasEnoughClasses
         ? t("imageClassifierPickAtLeastTwo")
         : hasSamplesForEachClass
           ? t("imageClassifierReadyToTrain")
           : t("imageClassifierPickDoodlesForEach");
-      trainModelBtn.disabled = classCount < 2 || !hasSamplesForEachClass || trainingInProgress;
+
+      selectionCountEl.textContent = summaryText;
+      selectionHintEl.textContent = hintText;
+      if (trainingReviewCountEl) {
+        trainingReviewCountEl.textContent = summaryText;
+      }
+      if (trainingReviewHintEl) {
+        trainingReviewHintEl.textContent = hintText;
+      }
+
+      trainModelBtn.disabled = !hasEnoughClasses || !hasSamplesForEachClass || trainingInProgress;
       clearSelectionBtn.disabled = (classCount === 0 && doodleCount === 0) || trainingInProgress;
+      toDoodlesBtn.disabled = classCount < 2 || trainingInProgress;
+      toTrainingBtn.disabled = !hasEnoughClasses || !hasSamplesForEachClass || trainingInProgress;
+      toTestingBtn.disabled = !modelReady || trainingInProgress;
+      if (classStepEl) {
+        classStepEl.classList.add("classifier-step-active");
+      }
+      if (doodleStepEl) {
+        const doodlesUnlocked = classCount > 0;
+        doodleStepEl.classList.toggle("classifier-step-locked", !doodlesUnlocked);
+        doodleStepEl.classList.toggle("classifier-step-active", doodlesUnlocked);
+      }
 
       selectedTagsEl.innerHTML = getSelectedClassLabels()
         .map((label) => `<span class="model-tag">${label}</span>`)
         .join("");
 
       testingSelectedTagsEl.innerHTML = selectedTagsEl.innerHTML;
-      testingTabBtn.disabled = !modelReady;
+      syncClassifierJourney();
+    }
+
+    function getSelectionState() {
+      const classCount = selectedClasses.size;
+      const doodleCount = selectedDoodles.size;
+      const labelGroups = getSelectedLabelGroups();
+      const hasEnoughClasses = classCount >= 2;
+      const hasSamplesForEachClass = classCount > 0 && labelGroups.length === classCount;
+
+      return {
+        classCount,
+        doodleCount,
+        labelGroups,
+        hasEnoughClasses,
+        hasSamplesForEachClass
+      };
+    }
+
+    function getMaxUnlockedStep() {
+      const { classCount, hasEnoughClasses, hasSamplesForEachClass } = getSelectionState();
+
+      if (modelReady) return 3;
+      if (hasEnoughClasses && hasSamplesForEachClass) return 2;
+      if (classCount > 0) return 1;
+      return 0;
+    }
+
+    function goToStep(stepIndex, { force = false } = {}) {
+      const clamped = Math.max(0, Math.min(classifierScreens.length - 1, stepIndex));
+      currentStepIndex = force ? clamped : Math.min(clamped, getMaxUnlockedStep());
+      syncClassifierJourney();
+    }
+
+    function syncClassifierJourney() {
+      const maxUnlockedStep = getMaxUnlockedStep();
+      currentStepIndex = Math.min(currentStepIndex, maxUnlockedStep);
+      classifierStepTrack.style.transform = `translateX(-${currentStepIndex * 100}%)`;
+
+      classifierScreens.forEach((screen, index) => {
+        screen.setAttribute("aria-hidden", String(index !== currentStepIndex));
+        screen.inert = index !== currentStepIndex;
+      });
+
+      classifierJourneySteps.forEach((button, index) => {
+        const isLocked = index > maxUnlockedStep;
+        button.disabled = isLocked;
+        button.classList.toggle("is-current", index === currentStepIndex);
+        button.classList.toggle("is-complete", index < currentStepIndex);
+        button.classList.toggle("is-locked", isLocked);
+        if (index === currentStepIndex) {
+          button.setAttribute("aria-current", "step");
+        } else {
+          button.removeAttribute("aria-current");
+        }
+      });
+
+      if (classifierJourneyTrack) {
+        const progressRatio = classifierJourneySteps.length > 1
+          ? (currentStepIndex / (classifierJourneySteps.length - 1))
+          : 0;
+        const progressPercent = progressRatio * 75;
+        const progressPx = progressRatio * 16;
+        classifierJourneyTrack.style.setProperty(
+          "--classifier-journey-progress",
+          `calc(${progressPercent}% + ${progressPx}px)`
+        );
+      }
+    }
+
+    function invalidateTrainedModel() {
+      if (!modelReady && !trainedBrowserModel) {
+        return;
+      }
+
+      modelReady = false;
+      trainedBrowserModel = null;
+      trainingInProgress = false;
+      updateModelStatus(
+        t("imageClassifierWaitingForTraining"),
+        t("imageClassifierNotConnected"),
+        "-"
+      );
+      canvasHelperKey = "imageClassifierTrainAndDraw";
+      canvasHelperEl.textContent = t(canvasHelperKey);
+      setCanvasAvailability(false);
+      handleResetCanvas();
+      setPredictionPlaceholder("imageClassifierTrainAndDraw");
     }
 
     async function trainModel() {
-      if (selectedClasses.size < 2 || trainingInProgress) return;
+      const { hasEnoughClasses, hasSamplesForEachClass, labelGroups } = getSelectionState();
+      if (!hasEnoughClasses || !hasSamplesForEachClass || trainingInProgress) return;
 
       trainingInProgress = true;
       modelReady = false;
       const selectedSamples = getSelectedSamples();
       const payloadSamples = getTrainingPayloadSamples();
-      const labelGroups = getSelectedLabelGroups();
 
       updateSelectionUI();
       setCanvasAvailability(false);
@@ -399,14 +525,14 @@
       updateModelStatus(t("imageClassifierReady"), details.backend, trainedAt);
       canvasHelperKey = "imageClassifierDrawSelectedClass";
       canvasHelperEl.textContent = t(canvasHelperKey);
-      testingTabBtn.disabled = false;
       setCanvasAvailability(true);
       handleResetCanvas();
       setPredictionPlaceholder("imageClassifierDrawThenTest");
       updateSelectionUI();
       window.setTimeout(() => {
         hideTrainingPopup();
-        setActiveTab("testing");
+        goToStep(2, { force: true });
+        toTestingBtn.focus();
       }, 550);
     }
 
@@ -414,7 +540,6 @@
       stopTrainingAnimation();
       trainingInProgress = false;
       modelReady = false;
-      testingTabBtn.disabled = true;
       setCanvasAvailability(false);
       setPredictionPlaceholder("imageClassifierTrainAndDraw");
       trainingProgressEl.style.width = "0%";
@@ -481,16 +606,6 @@
       trainingPercentEl.textContent = Math.round(clamped) + "%";
       trainingStatusKey = label;
       trainingStatusEl.textContent = t(label);
-    }
-
-    function setActiveTab(tab) {
-      const showTraining = tab === "training";
-      trainingTabBtn.classList.toggle("active", showTraining);
-      trainingTabBtn.setAttribute("aria-selected", String(showTraining));
-      testingTabBtn.classList.toggle("active", !showTraining);
-      testingTabBtn.setAttribute("aria-selected", String(!showTraining));
-      trainingPanel.classList.toggle("active", showTraining);
-      testingPanel.classList.toggle("active", !showTraining);
     }
 
     function updateModelStatus(state, backend, trainedAt) {
