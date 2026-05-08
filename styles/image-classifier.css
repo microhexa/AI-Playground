@@ -109,8 +109,8 @@
 
 .classifier-journey-phase {
   position: absolute;
-  top: 0;
-  bottom: 36px;
+  top: 6px;
+  bottom: 30px;
   border: 2px dashed rgba(74, 78, 105, 0.24);
   border-radius: 20px;
   background: rgba(255, 248, 244, 0.12);
@@ -130,7 +130,7 @@
 
 .classifier-journey-phase-label {
   position: absolute;
-  top: 10px;
+  top: 7px;
   left: 14px;
   padding: 0;
   background: transparent;
