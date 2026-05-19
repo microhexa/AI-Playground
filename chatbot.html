@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Toolbox | Vision Chat</title>
+  <link rel="icon" href="./images/hammer_19.png">
+  <link rel="stylesheet" href="./styles/main.css">
+</head>
+<body class="vision-chat-page">
+  <div class="page vision-chat-layout">
+    <button id="return-btn" class="level-back-button vision-chat-return-button" type="button" data-i18n="menuBack">Back</button>
+    <div class="vision-chat-page-title">
+      <h1 data-i18n="chatbotRoomTitle">Vision Chat</h1>
+    </div>
+
+    <main id="vision-chat-room" class="focus vision-chat-room">
+      <section id="vision-chat-stage" class="vision-chat-stage">
+        <div class="vision-chat-workspace">
+          <section class="vision-chat-card vision-chat-conversation-card" aria-label="Vision Chat">
+            <div class="vision-chat-card-header">
+              <p id="vision-selected-image-copy" data-i18n="visionChatDrawPrompt" hidden>Draw a doodle, then save it to begin.</p>
+              <p id="vision-doodle-status" class="vision-doodle-status" data-i18n="visionChatSaveHint" hidden>The AI will use the last saved doodle.</p>
+            </div>
+
+            <div id="vision-chat-log" class="vision-chat-log" aria-live="polite"></div>
+
+            <div id="vision-lesson-popup" class="vision-lesson-popup" hidden>
+              <button id="vision-lesson-popup-close" class="vision-lesson-popup-close" type="button" aria-label="Close what happened popup">&times;</button>
+              <div class="vision-lesson-kicker" data-i18n="visionChatLessonKicker">What happened</div>
+              <p id="vision-lesson-text" class="vision-lesson-text"></p>
+            </div>
+
+            <form id="vision-chat-form" class="vision-chat-form">
+              <button id="vision-open-draw" class="vision-chat-attach" type="button" aria-label="Draw doodle" title="Draw doodle">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm2.92 2.33H5v-.92l8.06-8.06.92.92L5.92 19.58zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.33a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.83z"/>
+                </svg>
+              </button>
+              <label class="sr-only" for="vision-chat-input" data-i18n="visionChatInputLabel">Ask a question about the image</label>
+              <input id="vision-chat-input" class="vision-chat-input" type="text" autocomplete="off" data-i18n-placeholder="visionChatInputPlaceholder" placeholder="Ask a question about the image">
+              <button id="vision-chat-send" class="vision-chat-send" type="submit" data-i18n="visionChatSend">Send</button>
+            </form>
+          </section>
+
+          <div class="vision-chat-side-rail">
+            <section id="vision-preview-card" class="vision-inline-tools vision-chat-card vision-side-panel vision-preview-side-card" aria-labelledby="vision-preview-title">
+              <div class="vision-preview-frame">
+                <canvas id="vision-preview-canvas" class="vision-preview-canvas" width="220" height="220" aria-label="Current saved doodle"></canvas>
+              </div>
+            </section>
+
+            <section id="vision-challenges-card" class="vision-inline-tools vision-chat-card vision-side-panel vision-challenges-side-card" aria-labelledby="vision-chat-challenges-title" hidden>
+              <div class="vision-inline-tools-header">
+                <div>
+                  <h3 id="vision-chat-challenges-title" data-i18n="visionChatChallengesTitle">Challenge cards</h3>
+                  <p id="vision-chat-challenges-helper" data-i18n="visionChatChallengesLocked">Ask the AI one question first to unlock the challenge cards.</p>
+                </div>
+              </div>
+              <div id="vision-challenge-grid" class="vision-challenge-list" role="list"></div>
+            </section>
+          </div>
+        </div>
+
+        <section id="vision-comparison-card" class="vision-chat-card vision-comparison-card" hidden aria-labelledby="vision-comparison-title">
+          <div class="vision-chat-card-header">
+            <h2 id="vision-comparison-title" data-i18n="visionChatComparisonTitle">3. Compare the three kinds of AI</h2>
+            <p data-i18n="visionChatComparisonHelper">They can all seem smart, but they are limited in different ways.</p>
+          </div>
+
+          <div class="vision-comparison-grid">
+            <article class="vision-comparison-column">
+              <h3 data-i18n="rulesTitle">Rule-based AI</h3>
+              <p data-i18n="visionChatCompareRules">Follows explicit rules.</p>
+            </article>
+            <article class="vision-comparison-column">
+              <h3 data-i18n="classifierTitle">Image classifier</h3>
+              <p data-i18n="visionChatCompareClassifier">Learns from examples.</p>
+            </article>
+            <article class="vision-comparison-column">
+              <h3 data-i18n="chatbotTitle">Vision Chat</h3>
+              <p data-i18n="visionChatCompareChat">Generates likely responses from patterns.</p>
+            </article>
+          </div>
+
+          <div class="vision-reflection-card">
+            <p data-i18n="visionChatReflectionQuestion">Which one seemed most general? Which one was actually limited?</p>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <div id="vision-doodle-modal" class="vision-doodle-modal" hidden>
+    <div class="vision-doodle-modal-backdrop" data-close-doodle="true"></div>
+    <section class="vision-doodle-modal-card vision-chat-card" aria-labelledby="vision-doodle-modal-title">
+      <button id="vision-close-doodle" class="vision-doodle-close" type="button" aria-label="Close drawing panel">&times;</button>
+      <div class="vision-chat-card-header">
+        <h2 id="vision-doodle-modal-title" data-i18n="visionChatCanvasTitle">Draw a doodle</h2>
+        <p data-i18n="visionChatCanvasHelper">Edit your doodle here, then press Save doodle to update what the AI uses.</p>
+      </div>
+      <div class="vision-doodle-modal-body">
+        <div class="vision-doodle-toolbar">
+          <button id="vision-reset-doodle" class="vision-tool-button" type="button" aria-label="Reset doodle">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m15.854,10.854l-3.146,3.146,3.146,3.146c.195.195.195.512,0,.707-.098.098-.226.146-.354.146s-.256-.049-.354-.146l-3.146-3.146-3.146,3.146c-.098.098-.226.146-.354.146s-.256-.049-.354-.146c-.195-.195-.195-.512,0-.707l3.146-3.146-3.146-3.146c-.195-.195-.195-.512,0-.707s.512-.195.707,0l3.146,3.146,3.146-3.146c.195-.195.512-.195.707,0s.195.512,0,.707Zm7.146-6.354c0,.276-.224.5-.5.5h-1.5c0,.015,0,.03-.002.046l-1.37,14.867c-.215,2.33-2.142,4.087-4.481,4.087h-6.272c-2.337,0-4.263-1.754-4.48-4.08l-1.392-14.873c-.001-.016-.002-.031-.002-.047h-1.5c-.276,0-.5-.224-.5-.5s.224-.5.5-.5h5.028c.25-2.247,2.16-4,4.472-4h2c2.312,0,4.223,1.753,4.472,4h5.028c.276,0,.5.224.5.5Zm-15.464-.5h8.928c-.243-1.694-1.704-3-3.464-3h-2c-1.76,0-3.221,1.306-3.464,3Zm12.462,1H4.002l1.387,14.826c.168,1.81,1.667,3.174,3.484,3.174h6.272c1.82,0,3.318-1.366,3.485-3.179l1.366-14.821Z"/>
+            </svg>
+          </button>
+          <button id="vision-undo-doodle" class="vision-tool-button" type="button" aria-label="Undo doodle">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M24,12c0,6.617-5.383,12-12,12C5.553,24,.287,18.958,.011,12.521c-.012-.276,.202-.509,.478-.521,.271,.011,.509,.202,.521,.479,.252,5.9,5.08,10.521,10.99,10.521,6.065,0,11-4.935,11-11S18.065,1,12,1c-3.751,0-7.159,1.87-9.202,5H7.5c.276,0,.5,.224,.5,.5s-.224,.5-.5,.5H2.5c-.827,0-1.5-.673-1.5-1.5V.5c0-.276,.224-.5,.5-.5s.5,.224,.5,.5V5.399C4.232,2.019,7.931,0,12,0c6.617,0,12,5.383,12,12Z"/>
+            </svg>
+          </button>
+          <button id="vision-redo-doodle" class="vision-tool-button" type="button" aria-label="Redo doodle">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M23.989,12.521c-.275,6.437-5.542,11.479-11.989,11.479C5.383,24,0,18.617,0,12S5.383,0,12,0c4.04,0,7.789,2.066,10,5.414V.5c0-.276,.224-.5,.5-.5s.5,.224,.5,.5V5.5c0,.827-.673,1.5-1.5,1.5h-5c-.276,0-.5-.224-.5-.5s.224-.5,.5-.5h4.692C19.169,2.909,15.718,1,12,1,5.935,1,1,5.935,1,12s4.935,11,11,11c5.91,0,10.737-4.621,10.99-10.521,.012-.275,.246-.477,.521-.479,.276,.013,.49,.245,.478,.521Z"/>
+            </svg>
+          </button>
+        </div>
+        <canvas id="vision-draw-canvas" class="vision-draw-canvas" width="220" height="220" data-placeholder-key="visionChatDrawHere" aria-label="Draw a doodle" tabindex="0"></canvas>
+        <canvas id="vision-selected-canvas" class="vision-selected-canvas" width="220" height="220" aria-hidden="true"></canvas>
+      </div>
+      <div class="vision-doodle-modal-actions">
+        <button id="vision-save-doodle" class="vision-change-image" type="button" data-i18n="visionChatSaveDoodle">Save doodle</button>
+      </div>
+    </section>
+  </div>
+
+  <script src="scripts/translations.js"></script>
+  <script src="scripts/script.js"></script>
+  <script src="scripts/chatbot.js"></script>
+</body>
+</html>

@@ -1,14 +1,14 @@
 p {
     font-family: Caroni, sans-serif;
     line-height: 1.4;
-    font-size: 1.6rem;
+    font-size: var(--type-medium);
 }
 
 .topbar h1 {
     margin: 0;
     text-align: left;
     padding: 0;
-    font-size: 1.42rem;
+    font-size: var(--type-medium);
     font-weight: normal;
     letter-spacing: 0%;
     line-height: 1.1;
@@ -16,7 +16,7 @@ p {
 }
 
 h2 {
-    font-size: 1.6rem;
+    font-size: var(--type-large);
     margin-top: 0;
     margin-bottom: 10px;
 }
@@ -24,7 +24,7 @@ h2 {
 .popup h2,
 #rule-based-ai h2 {
     font-family: Caroni, sans-serif;
-    font-size: 1.8rem;
+    font-size: var(--type-large);
 }
 
 .intro {
@@ -36,14 +36,14 @@ h2 {
 
 .intro-kicker {
     margin: 0 0 10px;
-    font-size: 1.1rem;
+    font-size: var(--type-small);
     letter-spacing: 0.04em;
     text-transform: uppercase;
     color: #7f4b8b;
 }
 
 .intro h2 {
-    font-size: 1.85rem;
+    font-size: var(--type-large);
     line-height: 1.1;
     max-width: 700px;
     margin-bottom: 16px;
@@ -51,7 +51,7 @@ h2 {
 
 .intro-lead {
     max-width: 760px;
-    font-size: 1.75rem;
+    font-size: var(--type-medium);
     line-height: 1.45;
     color: #222;
 }
@@ -61,5 +61,5 @@ button {
 }
 
 .rule-card {
-    font-size: 1.6rem;
+    font-size: var(--type-medium);
 }

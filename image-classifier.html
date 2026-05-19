@@ -87,6 +87,26 @@
       </div>
     </div>
 
+    <div id="classifier-reflection-popup" class="popup hidden" aria-hidden="true">
+      <div class="popup-content classifier-reflection-popup" role="dialog" aria-modal="true" aria-labelledby="classifier-reflection-title">
+        <h2 id="classifier-reflection-title" data-i18n="imageClassifierReflectionTitle">Key takeaways</h2>
+        <div class="classifier-reflection-card">
+          <p id="classifier-reflection-intro" class="classifier-reflection-intro" data-i18n="imageClassifierReflectionPrompt">Choose the best answer for each question.</p>
+          <p id="classifier-reflection-progress" class="classifier-reflection-progress" aria-live="polite">1 / 3</p>
+          <div id="classifier-reflection-question" class="classifier-reflection-question" aria-live="polite">
+            <p id="classifier-reflection-stem" class="classifier-reflection-stem"></p>
+            <div id="classifier-reflection-choices" class="classifier-reflection-choices" role="list"></div>
+          </div>
+          <div id="classifier-reflection-summary" class="classifier-reflection-summary" hidden>
+            <ul id="classifier-reflection-summary-list" class="classifier-reflection-summary-list"></ul>
+          </div>
+        </div>
+        <div class="classifier-reflection-actions">
+          <button id="classifier-reflection-continue-btn" class="classifier-continue-btn" type="button" hidden data-i18n="imageClassifierReflectionContinue">Keep exploring</button>
+        </div>
+      </div>
+    </div>
+
     <div id="image-classifier-room" class="focus classifier-room">
       <div id="classifier-journey" class="classifier-journey" aria-label="Trin i billedklassifikatoren">
         <div class="classifier-journey-phase classifier-journey-phase-training" aria-hidden="true">
@@ -225,7 +245,6 @@
             <div class="draw-panel classifier-panel">
               <div id="canvas-card" class="canvas-card locked">
                 <h2 data-i18n="imageClassifierTestHeading">Test modellen</h2>
-                <p id="canvas-helper">TrÃ¦n en model fÃ¸rst. Tegn derefter i feltet for at se, hvad din klassifikator forudsiger.</p>
 
                 <div class="button-row">
                   <button id="reset-btn" class="crit" type="button" aria-label="Nulstil">
@@ -245,7 +264,7 @@
                   </button>
                 </div>
 
-                <canvas id="draw" width="420" height="420"></canvas>
+                <canvas id="draw" width="348" height="348"></canvas>
 
                 <div class="button-row">
                   <button id="classify-btn" type="button" data-i18n="imageClassifierTestModel">Test model</button>
@@ -266,16 +285,17 @@
                   </div>
                   <div id="prediction-other-heading" class="prediction-other-heading" data-i18n="imageClassifierOtherMatches">Other matches</div>
                   <div id="prediction-ranked-list" class="prediction-ranked-list"></div>
+                  <button id="classifier-reflection-start-btn" class="classifier-secondary-btn classifier-reflection-start-btn hidden" type="button" hidden data-i18n="imageClassifierReflectionStart">Start quick quiz</button>
                 </div>
-                <div id="result-bottom">
-                  <h2 data-i18n="imageClassifierModelDetails">Modeldetaljer</h2>
-                  <ul class="status-list">
-                    <li><strong data-i18n="imageClassifierState">Status</strong><span id="testing-model-state">Venter pÃ¥ trÃ¦ning</span></li>
-                    <li><strong data-i18n="imageClassifierBackend">Backend</strong><span id="testing-model-backend">Ikke forbundet</span></li>
-                    <li><strong data-i18n="imageClassifierLastTrained">Sidst trÃ¦net</strong><span id="testing-model-trained-at">-</span></li>
-                  </ul>
-                  <div id="testing-selected-tags" class="model-tag-list"></div>
-                </div>
+              </div>
+              <div class="tallbox testing-helper-card">
+                <h2 data-i18n="imageClassifierTryDrawingTitle">Try drawing</h2>
+                <ul id="testing-suggestions-list" class="testing-suggestions-list">
+                  <li class="testing-suggestion-item" data-i18n="imageClassifierTryDrawingCircle">Draw a circle</li>
+                  <li class="testing-suggestion-item" data-i18n="imageClassifierTryDrawingLine">Draw a line</li>
+                  <li id="testing-suggestion-class" class="testing-suggestion-item">Draw one of your selected classes</li>
+                  <li class="testing-suggestion-item" data-i18n="imageClassifierTryDrawingUnexpected">Draw something unexpected</li>
+                </ul>
               </div>
             </div>
           </section>

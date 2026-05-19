@@ -10,6 +10,7 @@
 </head>
 <body class="rule-quiz-body">
   <div class="page rule-page rule-quiz-page">
+    <div id="rule-confetti-layer" class="rule-confetti-layer" aria-hidden="true"></div>
     <button id="return-btn" class="level-back-button rule-return-button" type="button" data-i18n="menuBack">Back</button>
     <div class="rule-page-title">
       <h1 data-i18n="rulesTitle">Rule-based AI</h1>
@@ -25,6 +26,7 @@
               <div id="rule-sequence-callout" class="rule-sequence-callout" hidden aria-live="polite">
                 <p id="rule-sequence-step-count" class="rule-sequence-step-count">Rule check 1/3</p>
                 <p id="rule-sequence-step-text" class="rule-sequence-step-text">The drawing is wider than it is tall.</p>
+                <button id="rule-sequence-skip-btn" class="rule-sequence-skip-btn" type="button" data-i18n="rulesOverlaySkip">Skip</button>
               </div>
               <canvas id="quiz-doodle" width="320" height="320" aria-label="Doodle to classify"></canvas>
               <canvas id="quiz-doodle-overlay" width="320" height="320" aria-hidden="true" hidden></canvas>
@@ -49,12 +51,46 @@
             <ul id="rules-applied-list" class="rules-applied-list"></ul>
           </div>
         </section>
-        <section id="rule-final-question" class="rule-final-question" hidden aria-live="polite">
-          <h3 class="rule-final-title" data-i18n="rulesFinalQuestion">How does this AI make decisions?</h3>
-          <div class="answer-options answer-options-final" role="list">
-            <button class="answer-option final-answer-option" type="button" data-final-answer="understands" data-i18n="rulesFinalOptionUnderstand">It understands what a house is</button>
-            <button class="answer-option final-answer-option" type="button" data-final-answer="shapes" data-i18n="rulesFinalOptionShapes">It checks for specific shapes</button>
-            <button class="answer-option final-answer-option" type="button" data-final-answer="random" data-i18n="rulesFinalOptionRandom">It guesses randomly</button>
+        <section id="rule-final-question" class="rule-final-question" hidden aria-live="polite"></section>
+        <section id="rule-module-transition" class="rule-module-transition" hidden aria-live="polite">
+          <div class="rule-transition-card">
+            <h3 class="rule-transition-title" data-i18n="rulesTransitionTitle">Key takeaways</h3>
+            <div id="rule-transition-summary-inner" class="rule-transition-summary">
+              <p id="rule-transition-summary-intro" class="rule-transition-summary-intro" data-i18n="rulesSummaryPrompt">Choose the best option to complete each sentence.</p>
+              <p id="rule-transition-summary-progress" class="rule-transition-summary-progress" aria-live="polite">1 / 3</p>
+              <div class="rule-transition-summary-item" data-summary-item="works">
+                <p class="rule-transition-summary-stem" data-i18n="rulesSummaryWorksStem">It works by...</p>
+                <div class="rule-transition-summary-choices" role="list">
+                  <button class="rule-transition-choice" type="button" data-summary-item="works" data-summary-value="rules" data-i18n="rulesSummaryWorksOptionRules">following fixed rules</button>
+                  <button class="rule-transition-choice" type="button" data-summary-item="works" data-summary-value="examples" data-i18n="rulesSummaryWorksOptionExamples">learning from examples</button>
+                  <button class="rule-transition-choice" type="button" data-summary-item="works" data-summary-value="responses" data-i18n="rulesSummaryWorksOptionResponses">giving likely responses</button>
+                </div>
+              </div>
+              <div class="rule-transition-summary-item" data-summary-item="good" hidden>
+                <p class="rule-transition-summary-stem" data-i18n="rulesSummaryGoodStem">It is good at...</p>
+                <div class="rule-transition-summary-choices" role="list">
+                  <button class="rule-transition-choice" type="button" data-summary-item="good" data-summary-value="clear" data-i18n="rulesSummaryGoodOptionClear">clear drawings that match its rules</button>
+                  <button class="rule-transition-choice" type="button" data-summary-item="good" data-summary-value="chat" data-i18n="rulesSummaryGoodOptionChat">holding long conversations</button>
+                  <button class="rule-transition-choice" type="button" data-summary-item="good" data-summary-value="learn" data-i18n="rulesSummaryGoodOptionLearn">learning new rules on its own</button>
+                </div>
+              </div>
+              <div class="rule-transition-summary-item" data-summary-item="struggle" hidden>
+                <p class="rule-transition-summary-stem" data-i18n="rulesSummaryStruggleStem">It struggles with...</p>
+                <div class="rule-transition-summary-choices" role="list">
+                  <button class="rule-transition-choice" type="button" data-summary-item="struggle" data-summary-value="unusual" data-i18n="rulesSummaryStruggleOptionUnusual">unusual drawings that do not match clearly</button>
+                  <button class="rule-transition-choice" type="button" data-summary-item="struggle" data-summary-value="nothing" data-i18n="rulesSummaryStruggleOptionNothing">nothing at all</button>
+                  <button class="rule-transition-choice" type="button" data-summary-item="struggle" data-summary-value="sentences" data-i18n="rulesSummaryStruggleOptionSentences">writing full sentences</button>
+                </div>
+              </div>
+              <div id="rule-transition-summary-final" class="rule-transition-summary-final" hidden>
+                <ul class="rule-transition-summary-final-list">
+                  <li class="rule-transition-summary-final-line" data-i18n="rulesSummaryFinalHow">It works by following fixed rules.</li>
+                  <li class="rule-transition-summary-final-line" data-i18n="rulesSummaryFinalGood">It is good at clear drawings that match its rules.</li>
+                  <li class="rule-transition-summary-final-line" data-i18n="rulesSummaryFinalStruggle">It struggles with unusual drawings that do not match clearly.</li>
+                </ul>
+              </div>
+            </div>
+            <button id="rule-transition-button" class="rule-feedback-next-btn rule-transition-button" type="button" data-i18n="rulesTransitionButton">Back to modules</button>
           </div>
         </section>
         <section id="rule-feedback-overlay" class="rule-feedback-overlay" hidden aria-live="polite">
@@ -70,7 +106,12 @@
                 <span id="rule-feedback-ai" class="rule-feedback-value">Fish</span>
               </p>
             </div>
+            <div id="rule-feedback-aha" class="rule-feedback-aha" hidden>
+              <img class="rule-feedback-aha-icon" src="./images/light-bulb-43.png" alt="" aria-hidden="true">
+              <p id="rule-feedback-aha-text" class="rule-feedback-aha-text" data-i18n="rulesAhaHardDoodle">This AI still makes a choice, but it can choose the wrong label when its rules do not fit the drawing clearly.</p>
+            </div>
             <p id="rule-feedback-hint" class="rule-feedback-hint">Starting the next round...</p>
+            <button id="rule-feedback-review-btn" class="rule-feedback-review-btn" type="button" data-i18n="rulesOverlayReview">Review rule check</button>
             <button id="rule-feedback-next-btn" class="rule-feedback-next-btn" type="button">Next drawing</button>
           </div>
         </section>

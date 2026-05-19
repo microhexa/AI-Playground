@@ -12,7 +12,7 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    font-size: 1.6rem;
+    font-size: var(--type-medium);
     font-family: Caroni, sans-serif;
 }
 
@@ -30,7 +30,7 @@
 .challenge-list input[type="checkbox"]:checked::after {
     content: "✓";
     color: black;
-    font-size: 1.4rem;
+    font-size: var(--type-small);
     font-weight: bold;
     display: block;
     text-align: center;
@@ -39,6 +39,6 @@
 
 .challenge-note {
     color: grey;
-    font-size: 1.4rem;
+    font-size: var(--type-small);
     font-family: Caroni, sans-serif;
 }

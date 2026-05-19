@@ -88,7 +88,7 @@
     const undoBtn = document.getElementById("undo-btn");
     const redoBtn = document.getElementById("redo-btn");
     const canvasCard = document.getElementById("canvas-card");
-    const canvasHelperEl = document.getElementById("canvas-helper");
+    const testingSuggestionClassEl = document.getElementById("testing-suggestion-class");
     const selectedTagsEl = document.getElementById("selected-tags");
     const testingSelectedTagsEl = document.getElementById("testing-selected-tags");
     const modelStateEl = document.getElementById("model-state");
@@ -108,6 +108,16 @@
     const predictionHelpVisualEl = document.getElementById("prediction-help-visual");
     const predictionHelpStackedBarEl = document.getElementById("prediction-help-stacked-bar");
     const closePredictionHelpBtn = document.getElementById("close-prediction-help-btn");
+    const classifierReflectionPopup = document.getElementById("classifier-reflection-popup");
+    const classifierReflectionIntroEl = document.getElementById("classifier-reflection-intro");
+    const classifierReflectionProgressEl = document.getElementById("classifier-reflection-progress");
+    const classifierReflectionQuestionEl = document.getElementById("classifier-reflection-question");
+    const classifierReflectionStemEl = document.getElementById("classifier-reflection-stem");
+    const classifierReflectionChoicesEl = document.getElementById("classifier-reflection-choices");
+    const classifierReflectionSummaryEl = document.getElementById("classifier-reflection-summary");
+    const classifierReflectionSummaryListEl = document.getElementById("classifier-reflection-summary-list");
+    const classifierReflectionContinueBtn = document.getElementById("classifier-reflection-continue-btn");
+    const classifierReflectionStartBtn = document.getElementById("classifier-reflection-start-btn");
     const classifierJourney = document.getElementById("classifier-journey");
     const classifierJourneySteps = Array.from(document.querySelectorAll("[data-step-target]"));
     const classifierJourneyTrack = document.querySelector(".classifier-journey-steps");
@@ -125,6 +135,7 @@
     let placeholderImage = null;
     let drawing = false;
     let strokeMoved = false;
+    let activeCanvasPointerId = null;
     let hasDrawn = false;
     let trainingInterval = null;
     let trainingInProgress = false;
@@ -132,7 +143,6 @@
     let trainedBrowserModel = null;
     let trainingStatusKey = "imageClassifierPreparingData";
     let predictionPlaceholderKey = "imageClassifierTrainAndDraw";
-    let canvasHelperKey = "imageClassifierTrainAndDraw";
     let currentStepIndex = 0;
     let currentDoodleRoundIndex = 0;
     let customDoodleCounter = 0;
@@ -141,6 +151,15 @@
     let addDoodleIsDrawing = false;
     let addDoodleStrokeMoved = false;
     let addDoodleHasDrawn = false;
+    let classifierReflectionIndex = 0;
+    let classifierReflectionCompleted = false;
+    let classifierReflectionOpen = false;
+    let classifierReflectionStarted = false;
+    let classifierReflectionAvailable = false;
+    let classifierHasPredictionResult = false;
+    let classifierReflectionEliminated = {};
+    let testingSuggestionClassId = "";
+    let testingSuggestionClassSignature = "";
     const classifierImageSize = 64;
     const doodlePanelScrollTopByClass = new Map();
     const deleteDoodleIconMarkup = `<span class="doodle-delete-mark" aria-hidden="true">x</span>`;
@@ -152,6 +171,41 @@
       "#c5a3ff",
       "#f7a8b8"
     ];
+    const classifierReflectionQuestions = [
+      {
+        key: "difference",
+        questionKey: "imageClassifierReflectionDifferenceQuestion",
+        correct: "examples",
+        summaryKey: "imageClassifierReflectionSummaryDifference",
+        options: [
+          { value: "examples", labelKey: "imageClassifierReflectionDifferenceOptionExamples" },
+          { value: "rules", labelKey: "imageClassifierReflectionDifferenceOptionRules" },
+          { value: "shapes", labelKey: "imageClassifierReflectionDifferenceOptionShapes" }
+        ]
+      },
+      {
+        key: "helps",
+        questionKey: "imageClassifierReflectionHelpsQuestion",
+        correct: "clear",
+        summaryKey: "imageClassifierReflectionSummaryHelps",
+        options: [
+          { value: "clear", labelKey: "imageClassifierReflectionHelpsOptionClear" },
+          { value: "rules", labelKey: "imageClassifierReflectionHelpsOptionRules" },
+          { value: "chat", labelKey: "imageClassifierReflectionHelpsOptionChat" }
+        ]
+      },
+      {
+        key: "confuse",
+        questionKey: "imageClassifierReflectionConfuseQuestion",
+        correct: "messy",
+        summaryKey: "imageClassifierReflectionSummaryConfuse",
+        options: [
+          { value: "messy", labelKey: "imageClassifierReflectionConfuseOptionMessy" },
+          { value: "rule", labelKey: "imageClassifierReflectionConfuseOptionRule" },
+          { value: "sentences", labelKey: "imageClassifierReflectionConfuseOptionSentences" }
+        ]
+      }
+    ];
 
     function getSectionLabel(section) {
       return section.customLabel || t(section.labelKey);
@@ -161,6 +215,15 @@
       return Object.entries(values).reduce((message, [name, value]) => (
         message.replace(`{${name}}`, value)
       ), t(key));
+    }
+
+    function shuffleArray(items) {
+      const copy = [...items];
+      for (let index = copy.length - 1; index > 0; index -= 1) {
+        const swapIndex = Math.floor(Math.random() * (index + 1));
+        [copy[index], copy[swapIndex]] = [copy[swapIndex], copy[index]];
+      }
+      return copy;
     }
 
     function updateDocumentLanguage() {
@@ -179,7 +242,7 @@
       renderDoodleTiles();
       updateSelectionUI();
       trainingStatusEl.textContent = t(trainingStatusKey);
-      canvasHelperEl.textContent = t(canvasHelperKey);
+      updateTestingSuggestions();
       if (predictionLabelEl.textContent === t("imageClassifierNothingDetected") || predictionLabelEl.textContent === "Nothing detected") {
         predictionLabelEl.textContent = t("imageClassifierNothingDetected");
       }
@@ -189,7 +252,165 @@
       if (!hasDrawn) {
         resetCanvas();
       }
+      updateClassifierReflectionTrigger();
+      if (classifierReflectionOpen) {
+        renderClassifierReflection();
+      }
     };
+
+    function updateTestingSuggestions() {
+      if (!testingSuggestionClassEl) return;
+
+      const selectedIds = getSelectedClassIds();
+      const signature = selectedIds.join("|");
+
+      if (!selectedIds.length) {
+        testingSuggestionClassId = "";
+        testingSuggestionClassSignature = "";
+        testingSuggestionClassEl.textContent = t("imageClassifierTryDrawingFallbackClass");
+        return;
+      }
+
+      const shouldPickNewClass =
+        signature !== testingSuggestionClassSignature ||
+        !selectedIds.includes(testingSuggestionClassId);
+
+      if (shouldPickNewClass) {
+        testingSuggestionClassSignature = signature;
+        testingSuggestionClassId = selectedIds[Math.floor(Math.random() * selectedIds.length)] || "";
+      }
+
+      const section = doodleSections.find((item) => item.id === testingSuggestionClassId);
+      const label = section ? getSectionLabel(section) : "";
+      testingSuggestionClassEl.textContent = label
+        ? formatMessage("imageClassifierTryDrawingClass", { label })
+        : t("imageClassifierTryDrawingFallbackClass");
+    }
+
+    function updateClassifierReflectionTrigger() {
+      if (!classifierReflectionStartBtn) return;
+      const shouldShow = classifierReflectionAvailable && classifierHasPredictionResult && !classifierReflectionCompleted && !classifierReflectionOpen;
+      classifierReflectionStartBtn.classList.toggle("hidden", !shouldShow);
+      classifierReflectionStartBtn.hidden = !shouldShow;
+    }
+
+    function resetClassifierReflectionState() {
+      classifierReflectionIndex = 0;
+      classifierReflectionEliminated = {};
+      classifierReflectionQuestions.forEach((question) => {
+        classifierReflectionEliminated[question.key] = new Set();
+      });
+    }
+
+    function updateClassifierReflectionProgress() {
+      if (!classifierReflectionProgressEl) return;
+      const total = classifierReflectionQuestions.length;
+      classifierReflectionProgressEl.textContent = `${Math.min(classifierReflectionIndex + 1, total)} / ${total}`;
+    }
+
+    function renderClassifierReflectionQuestion() {
+      const question = classifierReflectionQuestions[classifierReflectionIndex];
+      if (!question || !classifierReflectionStemEl || !classifierReflectionChoicesEl) return;
+
+      classifierReflectionStemEl.textContent = t(question.questionKey);
+      classifierReflectionChoicesEl.innerHTML = "";
+
+      shuffleArray(question.options.map((option) => ({ ...option }))).forEach((option) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "classifier-reflection-choice";
+        button.dataset.questionKey = question.key;
+        button.dataset.optionValue = option.value;
+        button.textContent = t(option.labelKey);
+
+        if (classifierReflectionEliminated[question.key]?.has(option.value)) {
+          button.disabled = true;
+          button.classList.add("is-eliminated");
+          button.setAttribute("aria-disabled", "true");
+        }
+
+        button.addEventListener("click", () => handleClassifierReflectionChoice(question, option.value, button));
+        classifierReflectionChoicesEl.appendChild(button);
+      });
+    }
+
+    function renderClassifierReflectionSummary() {
+      if (!classifierReflectionSummaryListEl) return;
+      classifierReflectionSummaryListEl.innerHTML = classifierReflectionQuestions
+        .map((question) => `<li class="classifier-reflection-summary-line">${t(question.summaryKey)}</li>`)
+        .join("");
+    }
+
+    function renderClassifierReflection() {
+      if (!classifierReflectionPopup) return;
+
+      if (classifierReflectionIntroEl) classifierReflectionIntroEl.hidden = classifierReflectionCompleted;
+      if (classifierReflectionProgressEl) classifierReflectionProgressEl.hidden = classifierReflectionCompleted;
+      if (classifierReflectionQuestionEl) classifierReflectionQuestionEl.hidden = classifierReflectionCompleted;
+      if (classifierReflectionSummaryEl) classifierReflectionSummaryEl.hidden = !classifierReflectionCompleted;
+      if (classifierReflectionContinueBtn) classifierReflectionContinueBtn.hidden = !classifierReflectionCompleted;
+
+      if (classifierReflectionCompleted) {
+        renderClassifierReflectionSummary();
+        return;
+      }
+
+      updateClassifierReflectionProgress();
+      renderClassifierReflectionQuestion();
+    }
+
+    function openClassifierReflectionPopup() {
+      if (!classifierReflectionPopup || classifierReflectionCompleted || classifierReflectionOpen) return;
+      classifierReflectionStarted = true;
+      classifierReflectionOpen = true;
+      updateClassifierReflectionTrigger();
+      resetClassifierReflectionState();
+      renderClassifierReflection();
+      classifierReflectionPopup.classList.remove("hidden");
+      classifierReflectionPopup.setAttribute("aria-hidden", "false");
+      window.requestAnimationFrame(() => {
+        const firstChoice = classifierReflectionChoicesEl?.querySelector(".classifier-reflection-choice");
+        firstChoice?.focus();
+      });
+    }
+
+    function closeClassifierReflectionPopup() {
+      if (!classifierReflectionPopup) return;
+      classifierReflectionOpen = false;
+      classifierReflectionPopup.classList.add("hidden");
+      classifierReflectionPopup.setAttribute("aria-hidden", "true");
+      updateClassifierReflectionTrigger();
+      document.getElementById("classify-btn")?.focus();
+    }
+
+    function handleClassifierReflectionChoice(question, selectedValue, button) {
+      if (classifierReflectionCompleted) return;
+
+      if (selectedValue === question.correct) {
+        classifierReflectionIndex += 1;
+        if (classifierReflectionIndex >= classifierReflectionQuestions.length) {
+          classifierReflectionCompleted = true;
+          classifierReflectionAvailable = false;
+          classifierHasPredictionResult = false;
+          updateClassifierReflectionTrigger();
+        }
+        renderClassifierReflection();
+        window.requestAnimationFrame(() => {
+          if (classifierReflectionCompleted) {
+            classifierReflectionContinueBtn?.focus();
+            return;
+          }
+          const firstChoice = classifierReflectionChoicesEl?.querySelector(".classifier-reflection-choice");
+          firstChoice?.focus();
+        });
+        return;
+      }
+
+      classifierReflectionEliminated[question.key]?.add(selectedValue);
+      button.disabled = true;
+      button.classList.add("is-eliminated");
+      button.setAttribute("aria-disabled", "true");
+    }
 
     renderClassOptions();
     renderDoodleTiles();
@@ -202,10 +423,11 @@
     goToStep(0, { force: true });
     applyTranslations();
 
-    canvas.addEventListener("mousedown", startDrawing);
-    canvas.addEventListener("mousemove", draw);
-    canvas.addEventListener("mouseup", endDrawing);
-    canvas.addEventListener("mouseleave", endDrawing);
+    canvas.addEventListener("pointerdown", startDrawing);
+    canvas.addEventListener("pointermove", draw);
+    canvas.addEventListener("pointerup", endDrawing);
+    canvas.addEventListener("pointerleave", endDrawing);
+    canvas.addEventListener("pointercancel", endDrawing);
     document.getElementById("reset-btn").addEventListener("click", handleResetCanvas);
     document.getElementById("undo-btn").addEventListener("click", handleUndo);
     document.getElementById("redo-btn").addEventListener("click", handleRedo);
@@ -218,6 +440,8 @@
     nextDoodleRoundBtn.addEventListener("click", handleNextDoodleRoundAction);
     cancelAddDoodleBtn.addEventListener("click", closeAddDoodlePopup);
     confirmAddDoodleBtn.addEventListener("click", commitCustomDoodle);
+    classifierReflectionContinueBtn?.addEventListener("click", closeClassifierReflectionPopup);
+    classifierReflectionStartBtn?.addEventListener("click", openClassifierReflectionPopup);
     cancelCustomClassBtn.addEventListener("click", closeCustomClassPopup);
     confirmCustomClassBtn.addEventListener("click", commitCustomClassName);
     trainingPopupContinueBtn.addEventListener("click", continueFromTrainingPopup);
@@ -836,6 +1060,7 @@
       if (testingSelectedTagsEl) {
         testingSelectedTagsEl.innerHTML = selectedTagsMarkup;
       }
+      updateTestingSuggestions();
       updateTrainingChecklist({ hasEnoughClasses, hasSamplesForEachClass });
       if (addDoodleTargetClassId) {
         const section = doodleSections.find((item) => item.id === addDoodleTargetClassId);
@@ -931,8 +1156,6 @@
         t("imageClassifierNotConnected"),
         "-"
       );
-      canvasHelperKey = "imageClassifierTrainAndDraw";
-      canvasHelperEl.textContent = t(canvasHelperKey);
       setCanvasAvailability(false);
       handleResetCanvas();
       setPredictionPlaceholder("imageClassifierTrainAndDraw");
@@ -1213,9 +1436,6 @@
         });
 
         await wait(120);
-        setTrainingProgress(90, "imageClassifierValidatingModel");
-        await validateBrowserModel(processedSamples);
-        await wait(120);
 
         finishTraining({
           backend: t("imageClassifierBackendConnected"),
@@ -1244,8 +1464,6 @@
         minute: "2-digit"
       });
       updateModelStatus(t("imageClassifierReady"), details.backend, trainedAt);
-      canvasHelperKey = "imageClassifierDrawSelectedClass";
-      canvasHelperEl.textContent = t(canvasHelperKey);
       setCanvasAvailability(true);
       handleResetCanvas();
       setPredictionPlaceholder("imageClassifierDrawThenTest");
@@ -1372,6 +1590,7 @@
 
     function startDrawing(event) {
       if (!modelReady) return;
+      event.preventDefault();
 
       if (!hasDrawn) {
         ctx.fillStyle = "white";
@@ -1381,6 +1600,10 @@
 
       drawing = true;
       strokeMoved = false;
+      activeCanvasPointerId = typeof event.pointerId === "number" ? event.pointerId : null;
+      if (typeof event.pointerId === "number" && canvas.setPointerCapture) {
+        canvas.setPointerCapture(event.pointerId);
+      }
 
       const { x, y } = getCanvasPoint(event);
 
@@ -1390,6 +1613,10 @@
 
     function draw(event) {
       if (!drawing || !modelReady) return;
+      if (activeCanvasPointerId !== null && typeof event.pointerId === "number" && event.pointerId !== activeCanvasPointerId) {
+        return;
+      }
+      event.preventDefault();
 
       const { x, y } = getCanvasPoint(event);
 
@@ -1405,14 +1632,37 @@
       ctx.moveTo(x, y);
     }
 
-    function endDrawing() {
-      if (drawing && strokeMoved) {
+    function endDrawing(event) {
+      if (!drawing) return;
+      if (activeCanvasPointerId !== null && typeof event?.pointerId === "number" && event.pointerId !== activeCanvasPointerId) {
+        return;
+      }
+      if (event) {
+        event.preventDefault();
+      }
+
+      let strokeCommitted = strokeMoved;
+      if (!strokeMoved && modelReady && event) {
+        const { x, y } = getCanvasPoint(event);
+        ctx.fillStyle = "black";
+        ctx.beginPath();
+        ctx.arc(x, y, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+        hasDrawn = true;
+        strokeCommitted = true;
+      }
+
+      if (strokeCommitted) {
         history.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
         if (history.length > 20) history.shift();
         redoHistory = [];
       }
 
       drawing = false;
+      if (typeof event?.pointerId === "number" && canvas.hasPointerCapture?.(event.pointerId)) {
+        canvas.releasePointerCapture(event.pointerId);
+      }
+      activeCanvasPointerId = null;
       ctx.beginPath();
       undoBtn.disabled = !modelReady || history.length <= 1;
       redoBtn.disabled = !modelReady || redoHistory.length === 0;
@@ -1506,10 +1756,21 @@
           `)
           .join("");
       }
+
+      if (!classifierReflectionStarted && !classifierReflectionCompleted) {
+        classifierHasPredictionResult = true;
+        classifierReflectionAvailable = true;
+        updateClassifierReflectionTrigger();
+      }
     }
 
     function setPredictionPlaceholder(messageKey = "imageClassifierTrainAndDraw") {
       predictionPlaceholderKey = messageKey;
+      classifierHasPredictionResult = false;
+      if (!classifierReflectionOpen && !classifierReflectionCompleted) {
+        classifierReflectionAvailable = false;
+        updateClassifierReflectionTrigger();
+      }
       predictionLabelEl.textContent = "-";
       predictionConfidenceEl.textContent = "";
       if (predictionOtherHeadingEl) {
@@ -1699,12 +1960,12 @@
 
       try {
         await model.fit(xs, ys, {
-          epochs: 18,
+          epochs: 8,
           batchSize: Math.min(8, samples.length),
           shuffle: true,
           callbacks: {
             onEpochEnd: async (epoch) => {
-              onEpochProgress((epoch + 1) / 18);
+              onEpochProgress((epoch + 1) / 8);
               await tf.nextFrame();
             }
           }
@@ -1722,21 +1983,6 @@
         labels: [...labels],
         model
       };
-    }
-
-    async function validateBrowserModel(samples) {
-      if (!trainedBrowserModel?.model) {
-        throw new Error("The CNN model was not created successfully.");
-      }
-
-      const testTensor = tf.tensor4d(
-        samples.flatMap((sample) => sample.pixels),
-        [samples.length, classifierImageSize, classifierImageSize, 1]
-      );
-      const prediction = trainedBrowserModel.model.predict(testTensor);
-      await prediction.data();
-      testTensor.dispose();
-      prediction.dispose();
     }
 
     async function predictWithBrowserModel(vector) {

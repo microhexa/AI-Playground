@@ -1,2 +1,936 @@
-/* Placeholder stylesheet to satisfy shared main.css imports.
-   Chatbot-specific styling can be added here when the page is implemented. */
+.vision-chat-page {
+  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.vision-chat-layout {
+  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
+}
+
+:root {
+  --vision-frame: rgba(74, 78, 105, 0.88);
+  --vision-card-bg: linear-gradient(180deg, rgba(255, 244, 242, 0.88) 0%, rgba(248, 246, 244, 0.84) 100%);
+  --vision-soft-bg: linear-gradient(180deg, rgba(255, 248, 244, 0.86) 0%, rgba(244, 241, 238, 0.84) 100%);
+  --vision-shadow: 0 10px 24px rgba(74, 78, 105, 0.12);
+  --vision-shadow-soft: 0 8px 18px rgba(74, 78, 105, 0.1);
+  --vision-font-xs: var(--type-small);
+  --vision-font-sm: var(--type-small);
+  --vision-font-md: var(--type-medium);
+  --vision-font-lg: var(--type-large);
+}
+
+.vision-chat-return-button {
+  position: absolute;
+  top: 22px;
+  left: 24px;
+  z-index: 7;
+}
+
+.vision-chat-page-title {
+  position: absolute;
+  top: clamp(26px, 4vh, 38px);
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  z-index: 6;
+  pointer-events: none;
+}
+
+.vision-chat-page-title h1 {
+  margin: 0;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 22px 12px;
+  border: 3px solid rgba(74, 78, 105, 0.9);
+  border-radius: 18px;
+  background: rgba(255, 248, 244, 0.82);
+  box-shadow: 0 8px 18px rgba(74, 78, 105, 0.1);
+  font-size: var(--type-medium);
+  line-height: 1.05;
+  color: var(--color-ink);
+  font-weight: 400;
+  white-space: nowrap;
+  pointer-events: auto;
+}
+
+.vision-chat-page-title h1::before {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border-radius: 12px;
+  border: 1.5px solid rgba(74, 78, 105, 0.14);
+  pointer-events: none;
+}
+
+.vision-chat-room {
+  width: min(100%, 860px);
+  min-height: 100vh;
+  height: 100vh;
+  padding: calc(clamp(92px, 13vh, 132px) + 12px) 24px 28px;
+  box-sizing: border-box;
+  overflow: hidden;
+  margin: 0 auto;
+}
+
+.vision-chat-stage {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  height: 100%;
+  min-height: 0;
+  align-items: center;
+}
+
+.vision-chat-workspace {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+  min-height: 0;
+  flex: 1;
+  max-width: 100%;
+}
+
+.vision-chat-side-rail {
+  display: flex;
+  flex: 0 0 220px;
+  flex-direction: column;
+  gap: 12px;
+  width: 220px;
+}
+
+.vision-chat-card {
+  position: relative;
+  background: rgba(255, 248, 244, 0.78);
+  border: 3px solid var(--vision-frame);
+  border-radius: 28px;
+  box-shadow: var(--vision-shadow-soft);
+  padding: 18px 18px 16px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.vision-chat-card::before {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border-radius: 20px;
+  border: 1.5px solid rgba(74, 78, 105, 0.14);
+  pointer-events: none;
+}
+
+.vision-chat-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.vision-chat-conversation-card {
+  flex: 0 1 620px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  background: linear-gradient(180deg, rgba(255, 250, 247, 0.9) 0%, rgba(248, 245, 241, 0.86) 100%);
+}
+
+.vision-comparison-card {
+  flex: 0 0 auto;
+  width: min(100%, 860px);
+}
+
+.vision-chat-card-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+
+.vision-chat-card-header h2,
+.vision-comparison-column h3 {
+  margin: 0;
+}
+
+.vision-chat-card-header p,
+.vision-comparison-column p,
+.vision-reflection-card p,
+.vision-lesson-text {
+  margin: 0;
+  font-size: var(--vision-font-md);
+  line-height: 1.45;
+  color: rgba(27, 38, 49, 0.78);
+}
+
+.vision-doodle-status {
+  font-size: var(--type-medium);
+  color: rgba(74, 78, 105, 0.8);
+}
+
+.vision-doodle-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.vision-doodle-modal[hidden] {
+  display: none;
+}
+
+.vision-doodle-modal-open {
+  overflow: hidden;
+}
+
+.vision-doodle-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(39, 42, 61, 0.26);
+  backdrop-filter: blur(3px);
+}
+
+.vision-doodle-modal-card {
+  position: relative;
+  width: min(100%, 460px);
+  max-height: min(100%, 620px);
+  overflow: auto;
+}
+
+.vision-doodle-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 3px solid var(--vision-frame);
+  border-radius: 999px;
+  background: rgba(255, 248, 244, 0.92);
+  color: var(--color-ink);
+  box-shadow: 0 8px 16px rgba(74, 78, 105, 0.08);
+  font-size: var(--type-small);
+  line-height: 1;
+  z-index: 2;
+}
+
+.vision-doodle-modal-body {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: start;
+  margin-top: 8px;
+}
+
+.vision-doodle-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vision-change-image {
+  padding: 10px 14px;
+  border: 3px solid var(--vision-frame);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 246, 245, 0.96) 0%, rgba(246, 246, 246, 0.92) 100%);
+  color: var(--color-ink);
+  font-family: Caroni, sans-serif;
+  font-size: var(--vision-font-sm);
+  box-shadow: 0 8px 16px rgba(74, 78, 105, 0.08);
+}
+
+.vision-change-image:hover,
+.vision-change-image:focus-visible {
+  transform: translateY(-2px);
+}
+
+.vision-change-image:disabled,
+.vision-chat-attach:disabled,
+.vision-tool-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 6px 14px rgba(74, 78, 105, 0.08);
+}
+
+.vision-chat-attach,
+.vision-tool-button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 3px solid var(--vision-frame);
+  background: linear-gradient(180deg, rgba(255, 246, 245, 0.96) 0%, rgba(246, 246, 246, 0.92) 100%);
+  color: var(--color-ink);
+  box-shadow: 0 8px 16px rgba(74, 78, 105, 0.08);
+}
+
+.vision-chat-attach::before,
+.vision-tool-button::before {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border-radius: 12px;
+  border: 1.5px solid rgba(74, 78, 105, 0.14);
+  pointer-events: none;
+}
+
+.vision-chat-attach:hover:not(:disabled),
+.vision-chat-attach:focus-visible,
+.vision-tool-button:hover:not(:disabled),
+.vision-tool-button:focus-visible {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(74, 78, 105, 0.14);
+}
+
+.vision-chat-attach:focus-visible,
+.vision-tool-button:focus-visible {
+  outline: 3px solid rgba(249, 65, 68, 0.4);
+  outline-offset: 8px;
+}
+
+.vision-chat-attach:active:not(:disabled),
+.vision-tool-button:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 5px 12px rgba(74, 78, 105, 0.12);
+}
+
+.vision-chat-attach svg,
+.vision-tool-button svg {
+  width: 24px;
+  height: 24px;
+  fill: #1b2631;
+  stroke: #1b2631;
+}
+
+.vision-chat-attach {
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  align-self: center;
+}
+
+.vision-tool-button {
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+}
+
+.vision-draw-canvas {
+  width: 220px;
+  height: 220px;
+  display: block;
+  touch-action: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(246, 246, 246, 0.94) 100%);
+  border: 3px solid var(--vision-frame);
+  border-radius: 28px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 10px 22px rgba(74, 78, 105, 0.12);
+  cursor: crosshair;
+}
+
+.vision-selected-canvas {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(246, 246, 246, 0.94) 100%);
+  border: 3px solid var(--vision-frame);
+  border-radius: 28px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 10px 22px rgba(74, 78, 105, 0.12);
+}
+
+.vision-starter-prompt,
+.vision-chat-send,
+.vision-challenge-card {
+  position: relative;
+  border: 3px solid var(--vision-frame);
+  color: var(--color-ink);
+  transition: transform 180ms ease, box-shadow 180ms ease, opacity 180ms ease, background 180ms ease;
+}
+
+.vision-starter-prompt::before,
+.vision-chat-send::before,
+.vision-challenge-card::before {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border-radius: 18px;
+  border: 1.5px solid rgba(74, 78, 105, 0.16);
+  pointer-events: none;
+}
+
+.vision-starter-prompt:hover:not(:disabled),
+.vision-starter-prompt:focus-visible,
+.vision-chat-send:hover:not(:disabled),
+.vision-chat-send:focus-visible,
+.vision-challenge-card:hover:not(:disabled),
+.vision-challenge-card:focus-visible {
+  transform: translateY(-4px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.76),
+    inset 0 -3px 0 rgba(74, 78, 105, 0.12),
+    0 12px 24px rgba(74, 78, 105, 0.16);
+}
+
+.vision-starter-prompt:focus-visible,
+.vision-chat-input:focus-visible,
+.vision-chat-send:focus-visible,
+.vision-challenge-card:focus-visible {
+  outline: 3px solid rgba(249, 65, 68, 0.38);
+  outline-offset: 6px;
+}
+
+.vision-starter-prompt:active:not(:disabled),
+.vision-chat-send:active:not(:disabled),
+.vision-challenge-card:active:not(:disabled) {
+  transform: translateY(3px);
+}
+
+.vision-chat-send:disabled,
+.vision-challenge-card:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 6px 14px rgba(74, 78, 105, 0.08);
+}
+
+.vision-chat-log {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 10px 4px 4px;
+  margin-top: 2px;
+}
+
+.vision-chat-log:empty::before {
+  content: attr(data-empty-message);
+  display: block;
+  padding: 18px;
+  border: 2px dashed rgba(74, 78, 105, 0.22);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.35);
+  color: rgba(74, 78, 105, 0.8);
+  line-height: 1.45;
+}
+
+.vision-chat-message {
+  display: flex;
+}
+
+.vision-chat-message.user {
+  justify-content: flex-end;
+}
+
+.vision-chat-message.ai {
+  justify-content: flex-start;
+}
+
+.vision-chat-bubble {
+  max-width: min(82%, 560px);
+  padding: 14px 16px;
+  border: 2px solid rgba(74, 78, 105, 0.16);
+  border-radius: 20px;
+  box-shadow: 0 6px 14px rgba(74, 78, 105, 0.08);
+  line-height: 1.45;
+  font-family: Caroni, sans-serif;
+  font-size: var(--vision-font-md);
+  background: linear-gradient(180deg, rgba(255, 246, 245, 0.96) 0%, rgba(246, 246, 246, 0.92) 100%);
+}
+
+.vision-chat-message.user .vision-chat-bubble {
+  background: linear-gradient(180deg, rgba(255, 226, 226, 0.98) 0%, rgba(252, 212, 212, 0.94) 100%);
+}
+
+.vision-chat-message.ai .vision-chat-bubble {
+  background: linear-gradient(180deg, rgba(255, 248, 244, 0.98) 0%, rgba(247, 244, 241, 0.94) 100%);
+}
+
+.vision-chat-bubble-helper {
+  max-width: min(88%, 620px);
+  background: rgba(255, 255, 255, 0.48);
+}
+
+.vision-chat-bubble-role {
+  display: block;
+  margin-bottom: 6px;
+  font-size: var(--vision-font-xs);
+  color: rgba(74, 78, 105, 0.82);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.vision-chat-bubble-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.vision-chat-bubble-topline .vision-chat-bubble-role {
+  margin-bottom: 0;
+}
+
+.vision-chat-lesson-trigger {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 2px solid rgba(74, 78, 105, 0.7);
+  border-radius: 999px;
+  background: rgba(255, 248, 244, 0.92);
+  color: rgba(74, 78, 105, 0.9);
+  font-family: Caroni, sans-serif;
+  font-size: var(--type-small);
+  line-height: 1;
+  box-shadow: 0 4px 10px rgba(74, 78, 105, 0.08);
+}
+
+.vision-chat-lesson-trigger:hover,
+.vision-chat-lesson-trigger:focus-visible {
+  transform: translateY(-1px);
+}
+
+.vision-chat-form {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) 132px;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 2px solid rgba(74, 78, 105, 0.12);
+}
+
+.vision-doodle-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.vision-chat-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 14px 18px;
+  border: 3px solid var(--vision-frame);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--color-ink);
+  font-family: Caroni, sans-serif;
+  font-size: var(--vision-font-sm);
+  box-shadow: 0 6px 12px rgba(74, 78, 105, 0.08);
+}
+
+.vision-chat-send {
+  border-radius: 20px;
+  background: linear-gradient(180deg, #ffc1c1 0%, #f9afaf 62%, #ef9c9c 100%);
+  box-shadow: 0 8px 18px rgba(74, 78, 105, 0.1);
+  font-size: var(--vision-font-sm);
+}
+
+.vision-inline-tools {
+  margin-top: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.vision-side-panel {
+  align-self: stretch;
+  width: 100%;
+  padding: 14px 14px 12px;
+  border: 2px dashed rgba(74, 78, 105, 0.22);
+  border-radius: 24px;
+  background: rgba(255, 251, 249, 0.24);
+  box-shadow: none;
+}
+
+.vision-side-panel::before {
+  inset: 8px;
+  border-radius: 16px;
+  border: 1px solid rgba(74, 78, 105, 0.08);
+}
+
+.vision-side-panel .vision-inline-tools-header {
+  margin-bottom: 8px;
+}
+
+.vision-side-panel .vision-inline-tools-header h3 {
+  margin-bottom: 0;
+  font-size: var(--type-medium);
+  color: rgba(74, 78, 105, 0.92);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.vision-side-panel .vision-inline-tools-header p {
+  font-size: var(--type-medium);
+  line-height: 1.35;
+  color: rgba(74, 78, 105, 0.78);
+}
+
+.vision-preview-frame {
+  display: flex;
+  justify-content: stretch;
+  align-items: center;
+  width: 100%;
+}
+
+.vision-preview-canvas {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  display: block;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(246, 246, 246, 0.94) 100%);
+  border: 3px solid var(--vision-frame);
+  border-radius: 24px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 10px 22px rgba(74, 78, 105, 0.12);
+}
+
+.vision-preview-side-card {
+  flex: 0 0 222px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.vision-preview-side-card::before {
+  content: none;
+}
+
+.vision-challenges-side-card {
+  flex: 1 1 auto;
+  min-height: 0;
+  text-align: left;
+}
+
+.vision-inline-tools-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.vision-inline-tools-header h3,
+.vision-inline-tools-header p {
+  margin: 0;
+}
+
+.vision-inline-tools-header h3 {
+  font-size: var(--vision-font-xs);
+  color: rgba(74, 78, 105, 0.78);
+  font-weight: 400;
+}
+
+.vision-inline-tools-header p {
+  font-size: var(--type-medium);
+  color: rgba(74, 78, 105, 0.76);
+}
+
+.vision-challenge-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+  width: 100%;
+  text-align: left;
+}
+
+.vision-inline-tools.is-locked .vision-challenge-list {
+  opacity: 0.82;
+}
+
+.vision-challenge-card {
+  display: block;
+  width: 100%;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  text-align: left;
+  color: rgba(74, 78, 105, 0.7);
+  justify-self: stretch;
+}
+
+.vision-challenges-side-card .vision-challenge-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  background: none;
+  outline: none;
+  box-shadow: none !important;
+}
+
+.vision-challenges-side-card .vision-challenge-card::before {
+  content: none;
+}
+
+.vision-challenge-card:disabled {
+  opacity: 1;
+}
+
+.vision-challenge-card.is-locked {
+  color: rgba(74, 78, 105, 0.56);
+}
+
+.vision-challenge-card.is-complete {
+  color: rgba(54, 115, 72, 0.92);
+}
+
+.vision-challenge-card.is-active {
+  color: rgba(27, 38, 49, 0.92);
+}
+
+.vision-challenges-side-card .vision-challenge-card:hover:not(:disabled),
+.vision-challenges-side-card .vision-challenge-card:focus-visible {
+  transform: none;
+  box-shadow: none !important;
+  outline: none;
+}
+
+.vision-challenges-side-card .vision-challenge-card:active:not(:disabled) {
+  transform: none;
+  box-shadow: none !important;
+}
+
+.vision-challenge-card-row {
+  display: flex;
+  flex: 1 1 auto;
+  width: 100%;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 3px;
+  text-align: left;
+}
+
+.vision-challenge-card-marker {
+  display: block;
+  flex: 0 0 16px;
+  font-size: var(--type-small);
+  line-height: 1.25;
+  color: rgba(74, 78, 105, 0.72);
+  text-align: left;
+}
+
+.vision-challenge-card.is-complete .vision-challenge-card-marker {
+  color: rgba(54, 115, 72, 0.98);
+}
+
+.vision-challenge-card.is-active .vision-challenge-card-marker {
+  color: rgba(74, 78, 105, 0.86);
+}
+
+.vision-challenge-card-copy-wrap {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+}
+
+.vision-challenge-card-title {
+  display: block;
+  margin-bottom: 4px;
+  font-size: var(--vision-font-sm);
+}
+
+.vision-challenge-card-copy {
+  display: block;
+  width: 100%;
+  font-size: var(--type-medium);
+  line-height: 1.12;
+  color: currentColor;
+  text-align: left;
+}
+
+
+.vision-lesson-popup {
+  position: absolute;
+  right: 22px;
+  bottom: 94px;
+  width: min(320px, calc(100% - 44px));
+  padding: 14px 16px;
+  border: 2px solid rgba(74, 78, 105, 0.18);
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(255, 251, 237, 0.96) 0%, rgba(255, 246, 222, 0.9) 100%);
+  box-shadow: 0 12px 26px rgba(74, 78, 105, 0.16);
+  z-index: 4;
+}
+
+.vision-lesson-popup-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 2px solid rgba(74, 78, 105, 0.42);
+  border-radius: 999px;
+  background: rgba(255, 248, 244, 0.9);
+  color: rgba(74, 78, 105, 0.9);
+  font-size: var(--type-small);
+  line-height: 1;
+}
+
+.vision-lesson-kicker {
+  margin-bottom: 6px;
+  font-size: var(--type-small);
+  color: rgba(74, 78, 105, 0.82);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.vision-lesson-text {
+  font-size: var(--type-medium);
+  line-height: 1.3;
+}
+
+.vision-comparison-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.vision-comparison-column {
+  position: relative;
+  min-height: 160px;
+  padding: 18px 18px 16px;
+  border: 3px solid var(--vision-frame);
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(255, 248, 244, 0.96) 0%, rgba(246, 246, 246, 0.9) 100%);
+  box-shadow: 0 8px 18px rgba(74, 78, 105, 0.1);
+}
+
+.vision-comparison-column::before {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border-radius: 16px;
+  border: 1.5px solid rgba(74, 78, 105, 0.14);
+  pointer-events: none;
+}
+
+.vision-comparison-column > * {
+  position: relative;
+  z-index: 1;
+}
+
+.vision-reflection-card {
+  margin-top: 14px;
+  padding: 18px;
+  border: 3px solid rgba(74, 78, 105, 0.48);
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(255, 236, 189, 0.46) 0%, rgba(255, 249, 240, 0.4) 100%);
+}
+
+@media (max-width: 1080px) {
+  .vision-chat-page,
+  .vision-chat-layout {
+    height: auto;
+    overflow: visible;
+  }
+
+  .vision-chat-page-title {
+    position: static;
+    padding: 24px 88px 0;
+  }
+
+  .vision-chat-return-button {
+    top: 18px;
+    left: 18px;
+  }
+
+  .vision-chat-room {
+    min-height: auto;
+    height: auto;
+    padding: 18px 20px 32px;
+  }
+
+  .vision-chat-stage {
+    height: auto;
+  }
+
+  .vision-chat-workspace {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .vision-chat-side-rail {
+    width: 100%;
+    flex-basis: auto;
+  }
+
+  .vision-side-panel {
+    width: 100%;
+    align-self: stretch;
+  }
+
+  .vision-draw-canvas {
+    width: min(100%, 220px);
+    height: auto;
+    aspect-ratio: 1;
+  }
+
+  .vision-doodle-modal-body {
+    grid-template-columns: 1fr;
+  }
+
+  .vision-doodle-toolbar {
+    flex-direction: row;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 640px) {
+  .vision-chat-page-title {
+    padding: 22px 72px 0;
+  }
+
+  .vision-chat-return-button {
+    top: 14px;
+    left: 14px;
+  }
+
+  .vision-chat-room {
+    padding: 14px 14px 28px;
+  }
+
+  .vision-comparison-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .vision-chat-form {
+    grid-template-columns: 1fr;
+  }
+
+  .vision-chat-attach {
+    width: 100%;
+  }
+}

@@ -10,6 +10,7 @@ const IMAGE_CLASSIFIER_UNLOCK_KEY = "imageClassifierUnlocked";
 const CHATBOT_UNLOCK_KEY = "chatbotUnlocked";
 const PENDING_NEW_SESSION_RESET_KEY = "pendingNewSessionReset";
 const SKIP_HOME_TRANSITION_KEY = "skipHomeTransition";
+const LEVEL_MENU_HIGHLIGHT_KEY = "levelMenuHighlightTarget";
 const LEVEL_INTRO_TYPED_PAGE_STORAGE_PREFIX = "levelIntroTypedPage";
 const HOME_SCREEN_TRANSITION_MS = 420;
 const LEVEL_INTRO_FADE_MS = 220;
@@ -26,6 +27,12 @@ const MENU_DOODLE_PAUSE = 650;
 
 const currentPath = window.location.pathname;
 const isHomePage = currentPath.endsWith("index.html") || currentPath.endsWith("/");
+const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const isCoarsePointerDevice = window.matchMedia("(pointer: coarse)").matches;
+const isNarrowViewport = window.matchMedia("(max-width: 900px)").matches;
+const useHomePerformanceMode = isHomePage && (prefersReducedMotion || isCoarsePointerDevice || isNarrowViewport);
+const effectiveHomeScreenTransitionMs = useHomePerformanceMode ? 0 : HOME_SCREEN_TRANSITION_MS;
+const effectiveLevelIntroFadeMs = useHomePerformanceMode ? 0 : LEVEL_INTRO_FADE_MS;
 
 const aboutMenu = document.getElementById("menu-about");
 const homeMenu = document.getElementById("menu-home");
@@ -58,6 +65,13 @@ const returnBtn = document.getElementById("return-btn");
 const ruleCard = document.getElementById("slot-left");
 const classifierCard = document.getElementById("slot-center");
 const chatbotCard = document.getElementById("slot-right");
+const moduleMissionOverlay = document.getElementById("module-mission-overlay");
+const moduleMissionTitle = document.getElementById("module-mission-title");
+const moduleMissionHow = document.getElementById("module-mission-how");
+const moduleMissionText = document.getElementById("module-mission-text");
+const moduleMissionDo = document.getElementById("module-mission-do");
+const moduleMissionStart = document.getElementById("module-mission-start");
+const moduleMissionClose = document.getElementById("module-mission-close");
 const introLead = document.querySelector(".intro-lead");
 const quizContainer = document.getElementById("micro-quiz");
 const quizQuestion = document.getElementById("micro-quiz-question");
@@ -81,13 +95,46 @@ let levelIntroComputerDoodleAnimationFrame = null;
 let levelIntroComputerDoodleData = null;
 let levelIntroComputerDoodlePlayed = false;
 let shouldHighlightRuleCardAfterIntro = false;
+let levelMenuHighlightTarget = sessionStorage.getItem(LEVEL_MENU_HIGHLIGHT_KEY) || "";
+let activeModuleMissionKey = "";
 const menuDoodleState = [];
 const menuDoodleCache = new Map();
 const shouldSkipInitialHomeTransition = sessionStorage.getItem(SKIP_HOME_TRANSITION_KEY) === "true";
 
+if (isHomePage) {
+    if (levelIntro && levelIntro.parentElement !== document.body) {
+        document.body.appendChild(levelIntro);
+    }
+
+    if (moduleMissionOverlay && moduleMissionOverlay.parentElement !== document.body) {
+        document.body.appendChild(moduleMissionOverlay);
+    }
+}
+
 if (shouldSkipInitialHomeTransition) {
     sessionStorage.removeItem(SKIP_HOME_TRANSITION_KEY);
 }
+
+const moduleMissionConfig = {
+    rule: {
+        titleKey: "rulesTitle",
+        howKey: "moduleMissionRuleHow",
+        textKey: "moduleMissionRuleText",
+        doKey: "moduleMissionRuleDo"
+    },
+    classifier: {
+        titleKey: "classifierTitle",
+        howKey: "moduleMissionClassifierHow",
+        textKey: "moduleMissionClassifierText",
+        doKey: "moduleMissionClassifierDo"
+    },
+    chatbot: {
+        titleKey: "chatbotTitle",
+        howKey: "moduleMissionChatbotHow",
+        textKey: "moduleMissionChatbotText",
+        doKey: "moduleMissionChatbotDo"
+    }
+};
 
 function updateLanguageButtons() {
     if (enBtn) enBtn.classList.toggle("active", currentLang === "en");
@@ -99,10 +146,116 @@ function setRuleCardHighlight(active) {
     ruleCard.classList.toggle("journey-node-highlighted", active);
 }
 
+function setClassifierCardHighlight(active) {
+    if (!classifierCard) return;
+    classifierCard.classList.toggle("journey-node-highlighted", active);
+}
+
+function clearLevelCardHighlights() {
+    setRuleCardHighlight(false);
+    setClassifierCardHighlight(false);
+}
+
+function setLevelMenuHighlightTarget(target) {
+    levelMenuHighlightTarget = target || "";
+    if (levelMenuHighlightTarget) {
+        sessionStorage.setItem(LEVEL_MENU_HIGHLIGHT_KEY, levelMenuHighlightTarget);
+        return;
+    }
+
+    sessionStorage.removeItem(LEVEL_MENU_HIGHLIGHT_KEY);
+}
+
 function setStoredHomeScreen(mode) {
     homeMenuMode = mode;
     sessionStorage.setItem(HOME_SCREEN_KEY, mode);
 }
+
+function updateModuleMissionCopy() {
+    if (!moduleMissionOverlay || !activeModuleMissionKey) return;
+    const config = moduleMissionConfig[activeModuleMissionKey];
+    if (!config) return;
+
+    if (moduleMissionTitle) moduleMissionTitle.textContent = t(config.titleKey);
+    if (moduleMissionHow) moduleMissionHow.textContent = t(config.howKey);
+    if (moduleMissionText) moduleMissionText.textContent = t(config.textKey);
+    if (moduleMissionDo) moduleMissionDo.textContent = t(config.doKey);
+}
+
+function getOverlayViewportBounds() {
+    const viewport = window.visualViewport;
+    if (!viewport) {
+        return {
+            top: 0,
+            left: 0,
+            width: window.innerWidth,
+            height: window.innerHeight,
+        };
+    }
+
+    return {
+        top: viewport.offsetTop,
+        left: viewport.offsetLeft,
+        width: viewport.width,
+        height: viewport.height,
+    };
+}
+
+function syncOverlayViewportBounds() {
+    const { top, left, width, height } = getOverlayViewportBounds();
+    [levelIntro, moduleMissionOverlay].forEach(overlay => {
+        if (!overlay) return;
+        overlay.style.setProperty("--overlay-top", `${top}px`);
+        overlay.style.setProperty("--overlay-left", `${left}px`);
+        overlay.style.setProperty("--overlay-width", `${width}px`);
+        overlay.style.setProperty("--overlay-height", `${height}px`);
+    });
+}
+
+function hideModuleMission(immediate = false) {
+    if (!moduleMissionOverlay) return;
+
+    moduleMissionOverlay.classList.remove("is-visible");
+    if (immediate || useHomePerformanceMode) {
+        moduleMissionOverlay.hidden = true;
+        activeModuleMissionKey = "";
+        return;
+    }
+
+    window.setTimeout(() => {
+        if (!moduleMissionOverlay.classList.contains("is-visible")) {
+            moduleMissionOverlay.hidden = true;
+            activeModuleMissionKey = "";
+        }
+    }, 220);
+}
+
+function showModuleMission(moduleKey) {
+    if (!moduleMissionOverlay) return;
+    if (!moduleMissionConfig[moduleKey]) return;
+
+    activeModuleMissionKey = moduleKey;
+    updateModuleMissionCopy();
+    moduleMissionOverlay.hidden = false;
+    syncOverlayViewportBounds();
+
+    const reveal = () => {
+        syncOverlayViewportBounds();
+        moduleMissionOverlay.classList.add("is-visible");
+        if (moduleMissionStart) moduleMissionStart.focus();
+    };
+
+    if (useHomePerformanceMode) {
+        reveal();
+        return;
+    }
+
+    window.requestAnimationFrame(reveal);
+}
+
+window.applyModuleMissionTranslations = function applyModuleMissionTranslations() {
+    updateModuleMissionCopy();
+};
 
 function hasSavedProgress() {
     return PROGRESS_KEYS.some(key => localStorage.getItem(key) === "true");
@@ -173,6 +326,12 @@ function resetLevelIntroTypingState() {
         levelIntroComputerDoodle.classList.add("is-hidden");
         delete levelIntroComputerDoodle.dataset.animationStartedAt;
     }
+}
+
+function markLevelIntroTypingAsComplete() {
+    levelIntroTypingPageIndexes.forEach(pageIndex => {
+        sessionStorage.setItem(getLevelIntroTypingStorageKey(pageIndex), "true");
+    });
 }
 
 function getLevelIntroPageTextElement(pageIndex) {
@@ -384,7 +543,18 @@ function playLevelIntroTyping() {
 
     const fullText = syncLevelIntroPageText(activePageIndex);
 
+    if (useHomePerformanceMode) {
+        clearLevelIntroTyping(true);
+        textElement.textContent = fullText;
+        sessionStorage.setItem(getLevelIntroTypingStorageKey(activePageIndex), "true");
+        updateLevelIntroButtonVisibility();
+        return;
+    }
+
     if (sessionStorage.getItem(getLevelIntroTypingStorageKey(activePageIndex)) === "true") {
+        if (activePageIndex === LEVEL_INTRO_COMPUTER_PAGE_INDEX && levelIntroComputerDoodle) {
+            void startLevelIntroComputerDoodleAnimation();
+        }
         clearLevelIntroTyping(true);
         return;
     }
@@ -477,7 +647,7 @@ function hideLevelIntro(immediate = false) {
 
     levelIntro.classList.remove("is-visible");
 
-    if (immediate) {
+    if (immediate || useHomePerformanceMode) {
         levelIntro.hidden = true;
         return;
     }
@@ -485,7 +655,7 @@ function hideLevelIntro(immediate = false) {
     levelIntroHideTimer = window.setTimeout(() => {
         levelIntro.hidden = true;
         levelIntroHideTimer = null;
-    }, LEVEL_INTRO_FADE_MS);
+    }, effectiveLevelIntroFadeMs);
 }
 
 function setLevelIntroPage(nextIndex) {
@@ -532,12 +702,14 @@ function revealLevelIntro() {
     clearLevelIntroTimers();
     resetLevelIntroPages();
     levelIntro.hidden = false;
+    syncOverlayViewportBounds();
 
     if (levelMenu) {
         levelMenu.setAttribute("aria-hidden", "true");
     }
 
     window.requestAnimationFrame(() => {
+        syncOverlayViewportBounds();
         levelIntro.classList.add("is-visible");
         playLevelIntroTyping();
     });
@@ -545,10 +717,14 @@ function revealLevelIntro() {
 
 function queueLevelIntroReveal() {
     hideLevelIntro(true);
+    if (effectiveHomeScreenTransitionMs === 0) {
+        revealLevelIntro();
+        return;
+    }
     levelIntroTimer = window.setTimeout(() => {
         levelIntroTimer = null;
         revealLevelIntro();
-    }, HOME_SCREEN_TRANSITION_MS);
+    }, effectiveHomeScreenTransitionMs);
 }
 
 function updateLanguageMenuLabel() {
@@ -826,11 +1002,14 @@ async function loadMenuDoodleSet(name) {
 }
 
 function startMenuDoodleAnimation() {
-    if (!menuDoodleState.length || menuDoodleAnimationFrame) return;
-
-    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!menuDoodleState.length || menuDoodleAnimationFrame || useHomePerformanceMode || document.hidden) return;
 
     const render = now => {
+        if (document.hidden) {
+            stopMenuDoodleAnimation();
+            return;
+        }
+
         menuDoodleState.forEach(state => {
             const drawingEntry = state.drawings[state.index];
             if (!drawingEntry) return;
@@ -843,12 +1022,10 @@ function startMenuDoodleAnimation() {
             }
 
             const cycleElapsed = now - state.startedAt;
-            const effectiveElapsed = prefersReducedMotion
-                ? maxTimestamp
-                : Math.min(
-                    maxTimestamp,
-                    (Math.min(cycleElapsed, playbackDuration) / playbackDuration) * maxTimestamp
-                );
+            const effectiveElapsed = Math.min(
+                maxTimestamp,
+                (Math.min(cycleElapsed, playbackDuration) / playbackDuration) * maxTimestamp
+            );
 
             drawMenuDoodleFrame(state.canvas, drawing, effectiveElapsed);
 
@@ -864,8 +1041,14 @@ function startMenuDoodleAnimation() {
     menuDoodleAnimationFrame = window.requestAnimationFrame(render);
 }
 
+function stopMenuDoodleAnimation() {
+    if (!menuDoodleAnimationFrame) return;
+    window.cancelAnimationFrame(menuDoodleAnimationFrame);
+    menuDoodleAnimationFrame = null;
+}
+
 async function initializeMenuDoodles() {
-    if (!isHomePage || !menuDoodleCanvases.length) return;
+    if (!isHomePage || !menuDoodleCanvases.length || useHomePerformanceMode) return;
 
     let doodleSets = [];
 
@@ -1012,9 +1195,8 @@ function updateLevelCardState() {
 function showHomeMenu(mode) {
     if (mode !== LEVEL_MENU_MODE) {
         shouldHighlightRuleCardAfterIntro = false;
-        setRuleCardHighlight(false);
-    } else if (!shouldHighlightRuleCardAfterIntro) {
-        setRuleCardHighlight(false);
+        clearLevelCardHighlights();
+        hideModuleMission(true);
     }
 
     setStoredHomeScreen(mode);
@@ -1035,6 +1217,15 @@ function showHomeMenu(mode) {
 
     if (mode === LEVEL_MENU_MODE) {
         updateLevelCardState();
+        if (shouldHighlightRuleCardAfterIntro) {
+            setClassifierCardHighlight(false);
+            setRuleCardHighlight(true);
+        } else if (levelMenuHighlightTarget === "classifier") {
+            setRuleCardHighlight(false);
+            setClassifierCardHighlight(true);
+        } else {
+            clearLevelCardHighlights();
+        }
     }
 
     updateLevelIntroVisibility();
@@ -1043,7 +1234,10 @@ function showHomeMenu(mode) {
 function startNewSession() {
     resetHomeQuizState();
     resetLevelIntroTypingState();
+    markLevelIntroTypingAsComplete();
     shouldHighlightRuleCardAfterIntro = false;
+    setLevelMenuHighlightTarget("");
+    hideModuleMission(true);
     sessionStorage.setItem(PENDING_NEW_SESSION_RESET_KEY, "true");
     showHomeMenu(LEVEL_MENU_MODE);
     queueLevelIntroReveal();
@@ -1101,7 +1295,17 @@ function attachCardNavigation(card, button) {
 
     const trigger = () => {
         if (card.classList.contains("locked") || button.hidden) return;
-        button.click();
+        if (card === ruleCard) {
+            showModuleMission("rule");
+            return;
+        }
+        if (card === classifierCard) {
+            showModuleMission("classifier");
+            return;
+        }
+        if (card === chatbotCard) {
+            showModuleMission("chatbot");
+        }
     };
 
     card.addEventListener("click", trigger);
@@ -1128,6 +1332,39 @@ function attachMenuAction(menu, handler) {
             trigger();
         }
     });
+}
+
+function launchRuleBasedModule() {
+    shouldHighlightRuleCardAfterIntro = false;
+    setLevelMenuHighlightTarget("");
+    clearLevelCardHighlights();
+    clearProgressForNewSession();
+    sessionStorage.setItem(HOME_SCREEN_KEY, LEVEL_MENU_MODE);
+    hideLevelIntro(true);
+    hideModuleMission(true);
+    window.location.href = "rule-based-ai.html";
+}
+
+function launchImageClassifierModule() {
+    shouldHighlightRuleCardAfterIntro = false;
+    setLevelMenuHighlightTarget("");
+    clearLevelCardHighlights();
+    clearProgressForNewSession();
+    sessionStorage.setItem(HOME_SCREEN_KEY, LEVEL_MENU_MODE);
+    hideLevelIntro(true);
+    hideModuleMission(true);
+    window.location.href = "image-classifier.html";
+}
+
+function launchChatbotModule() {
+    shouldHighlightRuleCardAfterIntro = false;
+    setLevelMenuHighlightTarget("");
+    clearLevelCardHighlights();
+    clearProgressForNewSession();
+    sessionStorage.setItem(HOME_SCREEN_KEY, LEVEL_MENU_MODE);
+    hideLevelIntro(true);
+    hideModuleMission(true);
+    window.location.href = "chatbot.html";
 }
 
 if (enBtn) {
@@ -1180,34 +1417,19 @@ if (homeMenu) {
 
 if (startRuleBasedBtn) {
     startRuleBasedBtn.onclick = () => {
-        shouldHighlightRuleCardAfterIntro = false;
-        setRuleCardHighlight(false);
-        clearProgressForNewSession();
-        sessionStorage.setItem(HOME_SCREEN_KEY, LEVEL_MENU_MODE);
-        hideLevelIntro(true);
-        window.location.href = "rule-based-ai.html";
+        launchRuleBasedModule();
     };
 }
 
 if (startImageClassifierBtn) {
     startImageClassifierBtn.onclick = () => {
-        shouldHighlightRuleCardAfterIntro = false;
-        setRuleCardHighlight(false);
-        clearProgressForNewSession();
-        sessionStorage.setItem(HOME_SCREEN_KEY, LEVEL_MENU_MODE);
-        hideLevelIntro(true);
-        window.location.href = "image-classifier.html";
+        launchImageClassifierModule();
     };
 }
 
 if (startChatbotBtn) {
     startChatbotBtn.onclick = () => {
-        shouldHighlightRuleCardAfterIntro = false;
-        setRuleCardHighlight(false);
-        clearProgressForNewSession();
-        sessionStorage.setItem(HOME_SCREEN_KEY, LEVEL_MENU_MODE);
-        hideLevelIntro(true);
-        window.location.href = "chatbot.html";
+        launchChatbotModule();
     };
 }
 
@@ -1246,7 +1468,9 @@ if (creditsBackButton) {
 if (levelBackButton) {
     levelBackButton.onclick = () => {
         shouldHighlightRuleCardAfterIntro = false;
-        setRuleCardHighlight(false);
+        setLevelMenuHighlightTarget("");
+        clearLevelCardHighlights();
+        hideModuleMission(true);
         hideLevelIntro(true);
         sessionStorage.removeItem(PENDING_NEW_SESSION_RESET_KEY);
         showHomeMenu(SESSION_MENU_MODE);
@@ -1256,10 +1480,74 @@ if (levelBackButton) {
 if (levelIntroButton) {
     levelIntroButton.onclick = () => {
         shouldHighlightRuleCardAfterIntro = true;
+        setLevelMenuHighlightTarget("");
+        hideModuleMission(true);
         hideLevelIntro();
+        setClassifierCardHighlight(false);
         setRuleCardHighlight(true);
     };
 }
+
+if (moduleMissionStart) {
+    moduleMissionStart.onclick = () => {
+        if (activeModuleMissionKey === "rule") {
+            launchRuleBasedModule();
+            return;
+        }
+        if (activeModuleMissionKey === "classifier") {
+            launchImageClassifierModule();
+            return;
+        }
+        if (activeModuleMissionKey === "chatbot") {
+            launchChatbotModule();
+        }
+    };
+}
+
+if (moduleMissionClose) {
+    moduleMissionClose.onclick = () => {
+        hideModuleMission();
+    };
+}
+
+
+if (moduleMissionOverlay) {
+    moduleMissionOverlay.addEventListener("click", event => {
+        if (event.target === moduleMissionOverlay) {
+            hideModuleMission();
+        }
+    });
+}
+
+document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+        stopMenuDoodleAnimation();
+        stopLevelIntroComputerDoodleAnimation();
+        return;
+    }
+
+    syncOverlayViewportBounds();
+
+    if (!useHomePerformanceMode) {
+        startMenuDoodleAnimation();
+    }
+});
+
+window.addEventListener("pagehide", () => {
+    stopMenuDoodleAnimation();
+    stopLevelIntroComputerDoodleAnimation();
+});
+
+window.addEventListener("resize", syncOverlayViewportBounds);
+window.addEventListener("orientationchange", syncOverlayViewportBounds);
+window.visualViewport?.addEventListener("resize", syncOverlayViewportBounds);
+window.visualViewport?.addEventListener("scroll", syncOverlayViewportBounds);
+
+document.addEventListener("keydown", event => {
+    if (event.key === "Escape" && moduleMissionOverlay && !moduleMissionOverlay.hidden) {
+        hideModuleMission();
+    }
+});
 
 if (levelIntroPrevButton) {
     levelIntroPrevButton.onclick = () => {
@@ -1295,6 +1583,13 @@ if (returnBtn) {
             return;
         }
 
+        if (currentPath.endsWith("chatbot.html")) {
+            sessionStorage.setItem(HOME_SCREEN_KEY, LEVEL_MENU_MODE);
+            sessionStorage.setItem(SKIP_HOME_TRANSITION_KEY, "true");
+            window.location.href = "index.html";
+            return;
+        }
+
         sessionStorage.setItem(HOME_SCREEN_KEY, SESSION_MENU_MODE);
         window.location.href = "index.html";
     };
@@ -1303,6 +1598,7 @@ if (returnBtn) {
 updatePageMeta();
 updateLanguageButtons();
 applyTranslations();
+syncOverlayViewportBounds();
 levelIntroTypingPageIndexes.forEach(pageIndex => {
     syncLevelIntroPageText(pageIndex);
 });

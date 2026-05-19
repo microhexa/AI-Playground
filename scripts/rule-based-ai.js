@@ -3,6 +3,7 @@ const ruleQuizCanvas = document.getElementById("quiz-doodle");
 
 if (ruleQuizCanvas) {
   const rulePageEl = document.querySelector(".rule-quiz-page");
+  const confettiLayerEl = document.getElementById("rule-confetti-layer");
   const quizCtx = ruleQuizCanvas.getContext("2d");
   const answerButtons = Array.from(document.querySelectorAll(".answer-option[data-answer]"));
   const finalAnswerButtons = Array.from(document.querySelectorAll(".final-answer-option"));
@@ -13,6 +14,7 @@ if (ruleQuizCanvas) {
   const ruleSequenceCalloutEl = document.getElementById("rule-sequence-callout");
   const ruleSequenceStepCountEl = document.getElementById("rule-sequence-step-count");
   const ruleSequenceStepTextEl = document.getElementById("rule-sequence-step-text");
+  const ruleSequenceSkipBtn = document.getElementById("rule-sequence-skip-btn");
   const ruleHelperEl = document.getElementById("rule-helper");
   const playerStatusEl = document.getElementById("player-status");
   const playerAnswerValueEl = document.getElementById("player-answer-value");
@@ -21,12 +23,23 @@ if (ruleQuizCanvas) {
   const rulesRevealPanelEl = document.getElementById("rules-reveal-panel");
   const revealSection = document.getElementById("rule-reveal");
   const finalQuestionSection = document.getElementById("rule-final-question");
+  const moduleTransitionSection = document.getElementById("rule-module-transition");
+  const moduleTransitionButton = document.getElementById("rule-transition-button");
+  const transitionChoiceButtons = Array.from(document.querySelectorAll(".rule-transition-choice"));
+  const transitionSummaryItems = Array.from(document.querySelectorAll(".rule-transition-summary-item"));
+  const transitionSummaryInnerEl = document.getElementById("rule-transition-summary-inner");
+  const transitionSummaryIntroEl = document.getElementById("rule-transition-summary-intro");
+  const transitionSummaryProgressEl = document.getElementById("rule-transition-summary-progress");
+  const transitionSummaryFinalEl = document.getElementById("rule-transition-summary-final");
   const feedbackOverlayEl = document.getElementById("rule-feedback-overlay");
   const feedbackCardEl = document.getElementById("rule-feedback-card");
   const feedbackResultEl = document.getElementById("rule-feedback-result");
   const feedbackPlayerEl = document.getElementById("rule-feedback-player");
   const feedbackAiEl = document.getElementById("rule-feedback-ai");
+  const feedbackAhaEl = document.getElementById("rule-feedback-aha");
+  const feedbackAhaTextEl = document.getElementById("rule-feedback-aha-text");
   const feedbackHintEl = document.getElementById("rule-feedback-hint");
+  const feedbackReviewBtn = document.getElementById("rule-feedback-review-btn");
   const feedbackNextBtn = document.getElementById("rule-feedback-next-btn");
 
   const DATASET_LIMIT = 24;
@@ -301,6 +314,21 @@ if (ruleQuizCanvas) {
   let feedbackPreviewData = null;
   let feedbackStepTimeoutId = null;
   let progressDots = [];
+  let confettiCleanupTimeoutId = null;
+  let currentTransitionSummaryIndex = 0;
+  let transitionSummaryState = {
+    works: false,
+    good: false,
+    struggle: false
+  };
+
+  const TRANSITION_SUMMARY_ORDER = ["works", "good", "struggle"];
+
+  const TRANSITION_SUMMARY_CORRECT = {
+    works: "rules",
+    good: "clear",
+    struggle: "unusual"
+  };
 
   function drawCanvasMessage(message) {
     quizCtx.fillStyle = "#f6f6f6";
@@ -340,6 +368,167 @@ if (ruleQuizCanvas) {
     }
   }
 
+  function clearConfettiBurst() {
+    if (confettiCleanupTimeoutId !== null) {
+      window.clearTimeout(confettiCleanupTimeoutId);
+      confettiCleanupTimeoutId = null;
+    }
+    if (confettiLayerEl) {
+      confettiLayerEl.innerHTML = "";
+    }
+  }
+
+  function resetTransitionSummary() {
+    currentTransitionSummaryIndex = 0;
+    transitionSummaryState = {
+      works: false,
+      good: false,
+      struggle: false
+    };
+
+    transitionSummaryItems.forEach((item, index) => {
+      item.classList.remove("is-complete");
+      item.hidden = index !== 0;
+    });
+
+    transitionChoiceButtons.forEach(button => {
+      button.disabled = false;
+      button.hidden = false;
+      button.classList.remove("is-correct", "is-incorrect", "is-eliminated");
+      button.setAttribute("aria-pressed", "false");
+      button.removeAttribute("aria-disabled");
+    });
+
+    TRANSITION_SUMMARY_ORDER.forEach(itemKey => {
+      const relatedButtons = transitionChoiceButtons.filter(button => button.dataset.summaryItem === itemKey);
+      const choicesContainer = relatedButtons[0]?.closest(".rule-transition-summary-choices");
+      if (choicesContainer) {
+        shuffle(relatedButtons).forEach(button => choicesContainer.appendChild(button));
+      }
+    });
+
+    if (transitionSummaryIntroEl) transitionSummaryIntroEl.hidden = false;
+    if (transitionSummaryProgressEl) transitionSummaryProgressEl.hidden = false;
+    if (transitionSummaryFinalEl) transitionSummaryFinalEl.hidden = true;
+
+    updateTransitionSummaryProgress();
+
+    if (moduleTransitionButton) {
+      moduleTransitionButton.disabled = true;
+    }
+  }
+
+  function updateTransitionSummaryProgress() {
+    if (!transitionSummaryProgressEl) return;
+    const total = TRANSITION_SUMMARY_ORDER.length;
+    if (Object.values(transitionSummaryState).every(Boolean)) {
+      transitionSummaryProgressEl.textContent = `${total} / ${total}`;
+      return;
+    }
+
+    transitionSummaryProgressEl.textContent = `${Math.min(currentTransitionSummaryIndex + 1, total)} / ${total}`;
+  }
+
+  function updateTransitionButtonState() {
+    if (!moduleTransitionButton) return;
+    moduleTransitionButton.disabled = !Object.values(transitionSummaryState).every(Boolean);
+  }
+
+  function showNextTransitionSummaryItem() {
+    const total = TRANSITION_SUMMARY_ORDER.length;
+    currentTransitionSummaryIndex += 1;
+
+    if (currentTransitionSummaryIndex >= total) {
+      if (transitionSummaryIntroEl) transitionSummaryIntroEl.hidden = true;
+      if (transitionSummaryProgressEl) transitionSummaryProgressEl.hidden = true;
+      transitionSummaryItems.forEach(item => {
+        item.hidden = true;
+      });
+      if (transitionSummaryFinalEl) transitionSummaryFinalEl.hidden = false;
+      updateTransitionSummaryProgress();
+      if (moduleTransitionButton) {
+        window.requestAnimationFrame(() => moduleTransitionButton.focus());
+      }
+      return;
+    }
+
+    const nextKey = TRANSITION_SUMMARY_ORDER[currentTransitionSummaryIndex];
+    const nextItem = transitionSummaryItems.find(item => item.dataset.summaryItem === nextKey);
+    transitionSummaryItems.forEach(item => {
+      item.hidden = true;
+    });
+    if (nextItem) {
+      nextItem.hidden = false;
+      updateTransitionSummaryProgress();
+      window.requestAnimationFrame(() => {
+        const firstChoice = nextItem.querySelector(".rule-transition-choice");
+        if (firstChoice) firstChoice.focus();
+      });
+    }
+  }
+
+  function handleTransitionChoice(button) {
+    const itemKey = button.dataset.summaryItem;
+    const value = button.dataset.summaryValue;
+    if (!itemKey || transitionSummaryState[itemKey]) return;
+
+    const relatedButtons = transitionChoiceButtons.filter(candidate => candidate.dataset.summaryItem === itemKey);
+    const itemShell = transitionSummaryItems.find(item => item.dataset.summaryItem === itemKey);
+    const isCorrect = TRANSITION_SUMMARY_CORRECT[itemKey] === value;
+
+    if (isCorrect) {
+      launchConfettiBurst();
+      transitionSummaryState[itemKey] = true;
+      if (itemShell) itemShell.classList.add("is-complete");
+      relatedButtons.forEach(candidate => {
+        candidate.disabled = true;
+        candidate.classList.remove("is-incorrect", "is-eliminated");
+        if (candidate === button) {
+          candidate.classList.add("is-correct");
+          candidate.setAttribute("aria-pressed", "true");
+          candidate.hidden = false;
+        } else {
+          candidate.setAttribute("aria-pressed", "false");
+          candidate.hidden = true;
+        }
+      });
+      updateTransitionButtonState();
+      showNextTransitionSummaryItem();
+      return;
+    }
+
+    button.classList.add("is-incorrect", "is-eliminated");
+    button.disabled = true;
+    button.setAttribute("aria-disabled", "true");
+  }
+
+  function launchConfettiBurst() {
+    if (!confettiLayerEl) return;
+
+    clearConfettiBurst();
+
+    const colors = ["#f9c74f", "#f3722c", "#f94144", "#90be6d", "#577590", "#f9844a"];
+    const pieceCount = 42;
+
+    for (let index = 0; index < pieceCount; index++) {
+      const piece = document.createElement("span");
+      piece.className = "rule-confetti-piece";
+      piece.style.left = `${42 + Math.random() * 16}%`;
+      piece.style.background = colors[index % colors.length];
+      piece.style.animationDelay = `${Math.random() * 140}ms`;
+      piece.style.animationDuration = `${1200 + Math.random() * 420}ms`;
+      piece.style.setProperty("--confetti-x", `${(Math.random() - 0.5) * 520}px`);
+      piece.style.setProperty("--confetti-rotate", `${360 + Math.random() * 720}deg`);
+      piece.style.width = `${9 + Math.random() * 7}px`;
+      piece.style.height = `${14 + Math.random() * 12}px`;
+      confettiLayerEl.appendChild(piece);
+    }
+
+    confettiCleanupTimeoutId = window.setTimeout(() => {
+      clearConfettiBurst();
+    }, 1900);
+  }
+
   function resetFeedbackSequenceUi() {
     feedbackStepIndex = -1;
     feedbackPreviewData = null;
@@ -347,6 +536,7 @@ if (ruleQuizCanvas) {
     if (ruleSequenceCalloutEl) ruleSequenceCalloutEl.hidden = true;
     if (ruleSequenceStepCountEl) ruleSequenceStepCountEl.textContent = "";
     if (ruleSequenceStepTextEl) ruleSequenceStepTextEl.textContent = "";
+    if (ruleSequenceSkipBtn) ruleSequenceSkipBtn.hidden = true;
     if (ruleCanvasOverlayEl) {
       const overlayCtx = ruleCanvasOverlayEl.getContext("2d");
       overlayCtx.clearRect(0, 0, ruleCanvasOverlayEl.width, ruleCanvasOverlayEl.height);
@@ -389,6 +579,14 @@ if (ruleQuizCanvas) {
     }
     if (feedbackPlayerEl) feedbackPlayerEl.textContent = t(playerAnswer);
     if (feedbackAiEl) feedbackAiEl.textContent = t(aiAnswer);
+    if (feedbackAhaEl) {
+      feedbackAhaEl.hidden = completedRounds !== 7;
+      if (feedbackAhaTextEl) feedbackAhaTextEl.textContent = t("rulesAhaHardDoodle");
+    }
+    if (feedbackReviewBtn) {
+      feedbackReviewBtn.hidden = isMatch || !currentRound?.rule;
+      feedbackReviewBtn.textContent = t("rulesOverlayReview");
+    }
     if (feedbackNextBtn) {
       feedbackNextBtn.textContent = completedRounds >= TOTAL_ROUNDS
         ? t("rulesToFinalQuestion")
@@ -397,17 +595,6 @@ if (ruleQuizCanvas) {
     updateFeedbackHint();
     feedbackOverlayEl.hidden = false;
     if (rulePageEl) rulePageEl.classList.add("overlay-open");
-    scheduleAutoAdvance();
-  }
-
-  function scheduleAutoAdvance() {
-    clearAutoAdvanceTimer();
-    autoAdvancePaused = false;
-
-    const delay = completedRounds >= TOTAL_ROUNDS ? FINAL_AUTO_ADVANCE_DELAY : AUTO_ADVANCE_DELAY;
-    autoAdvanceTimeoutId = window.setTimeout(() => {
-      advanceAfterReveal();
-    }, delay);
   }
 
   function updateFeedbackHint() {
@@ -418,9 +605,7 @@ if (ruleQuizCanvas) {
       return;
     }
 
-    feedbackHintEl.textContent = autoAdvancePaused
-      ? t("rulesOverlayPaused")
-      : t("rulesOverlayAdvancing");
+    feedbackHintEl.textContent = "";
   }
 
   function buildRuleExplanationText(rule, index) {
@@ -534,10 +719,22 @@ if (ruleQuizCanvas) {
   }
 
   function finishFeedbackSequence() {
+    if (feedbackPlaybackComplete) return;
     feedbackPlaybackComplete = true;
     clearFeedbackStepTimer();
     resetFeedbackSequenceUi();
     showFeedbackPanel(currentRound.playerAnswer, currentRound.aiAnswer);
+  }
+
+  function skipFeedbackSequence() {
+    if (feedbackPlaybackComplete) return;
+    finishFeedbackSequence();
+  }
+
+  function replayFeedbackSequence() {
+    if (!currentRound?.answered || currentRound.playerAnswer === currentRound.aiAnswer || !currentRound.rule) return;
+    feedbackPlaybackComplete = false;
+    playFeedbackSequence(currentRound.rule);
   }
 
   function renderFeedbackRuleStep(rule, index) {
@@ -555,6 +752,7 @@ if (ruleQuizCanvas) {
     if (ruleSequenceStepTextEl) {
       ruleSequenceStepTextEl.textContent = step.explanationText;
     }
+    if (ruleSequenceSkipBtn) ruleSequenceSkipBtn.hidden = false;
     drawRuleOverlayOnCanvas(step.primaryCondition, feedbackPreviewData);
   }
 
@@ -599,6 +797,7 @@ if (ruleQuizCanvas) {
       if (ruleSequenceCalloutEl) ruleSequenceCalloutEl.hidden = false;
       if (ruleSequenceStepCountEl) ruleSequenceStepCountEl.textContent = "";
       if (ruleSequenceStepTextEl) ruleSequenceStepTextEl.textContent = t("rulesExplainFallback");
+      if (ruleSequenceSkipBtn) ruleSequenceSkipBtn.hidden = false;
       if (ruleCanvasOverlayEl) ruleCanvasOverlayEl.hidden = true;
       clearFeedbackStepTimer();
       feedbackStepTimeoutId = window.setTimeout(() => {
@@ -661,6 +860,14 @@ if (ruleQuizCanvas) {
       }
       if (feedbackPlayerEl) feedbackPlayerEl.textContent = t(currentRound.playerAnswer);
       if (feedbackAiEl) feedbackAiEl.textContent = t(currentRound.aiAnswer);
+      if (feedbackAhaEl) {
+        feedbackAhaEl.hidden = completedRounds !== 7;
+        if (feedbackAhaTextEl) feedbackAhaTextEl.textContent = t("rulesAhaHardDoodle");
+      }
+      if (feedbackReviewBtn) {
+        feedbackReviewBtn.hidden = currentRound.playerAnswer === currentRound.aiAnswer || !currentRound.rule;
+        feedbackReviewBtn.textContent = t("rulesOverlayReview");
+      }
       if (feedbackNextBtn) {
         feedbackNextBtn.textContent = completedRounds >= TOTAL_ROUNDS
           ? t("rulesToFinalQuestion")
@@ -1451,25 +1658,21 @@ if (ruleQuizCanvas) {
       button.hidden = true;
     });
     revealSection.hidden = true;
-    finalQuestionSection.hidden = false;
+    finalQuestionSection.hidden = true;
+    if (moduleTransitionSection) moduleTransitionSection.hidden = false;
+    resetTransitionSummary();
     finalAnswerChoice = null;
     hideFeedbackOverlay();
-    finalAnswerButtons.forEach(button => {
-      button.disabled = false;
-      button.classList.remove("selected", "correct", "incorrect");
-    });
-  }
-
-  function handleFinalAnswer(answer) {
-    finalAnswerChoice = answer;
-    finalAnswerButtons.forEach(button => {
-      button.disabled = true;
-      const isChosen = button.dataset.finalAnswer === answer;
-      const isCorrect = button.dataset.finalAnswer === FINAL_CORRECT_ANSWER;
-      button.classList.toggle("selected", isChosen);
-      button.classList.toggle("correct", isCorrect);
-      button.classList.toggle("incorrect", isChosen && !isCorrect);
-    });
+    if (moduleTransitionButton) {
+      window.requestAnimationFrame(() => {
+        const firstChoice = transitionChoiceButtons.find(button => button.dataset.summaryItem === "works");
+        if (firstChoice) {
+          firstChoice.focus();
+        } else {
+          moduleTransitionButton.focus();
+        }
+      });
+    }
   }
 
   async function loadJsonSamples() {
@@ -1568,6 +1771,29 @@ if (ruleQuizCanvas) {
   finalAnswerButtons.forEach(button => {
     button.addEventListener("click", () => handleFinalAnswer(button.dataset.finalAnswer));
   });
+
+  if (moduleTransitionButton) {
+    moduleTransitionButton.addEventListener("click", () => {
+      if (moduleTransitionButton.disabled) return;
+      localStorage.setItem("imageClassifierUnlocked", "true");
+      sessionStorage.setItem("homeScreen", "levels");
+      sessionStorage.setItem("skipHomeTransition", "true");
+      sessionStorage.setItem("levelMenuHighlightTarget", "classifier");
+      window.location.href = "index.html";
+    });
+  }
+
+  transitionChoiceButtons.forEach(button => {
+    button.addEventListener("click", () => handleTransitionChoice(button));
+  });
+
+  if (ruleSequenceSkipBtn) {
+    ruleSequenceSkipBtn.addEventListener("click", skipFeedbackSequence);
+  }
+
+  if (feedbackReviewBtn) {
+    feedbackReviewBtn.addEventListener("click", replayFeedbackSequence);
+  }
 
   if (rulesRevealChipEl) {
     rulesRevealChipEl.addEventListener("click", () => toggleRevealPanel("rules"));
