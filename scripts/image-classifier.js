@@ -88,6 +88,10 @@
     const undoBtn = document.getElementById("undo-btn");
     const redoBtn = document.getElementById("redo-btn");
     const canvasCard = document.getElementById("canvas-card");
+    const resultEl = document.getElementById("result");
+    const testingHelperCardEl = document.getElementById("testing-helper-card");
+    const resultTopEl = document.getElementById("result-top");
+    const testingSuggestionsListEl = document.getElementById("testing-suggestions-list");
     const testingSuggestionClassEl = document.getElementById("testing-suggestion-class");
     const selectedTagsEl = document.getElementById("selected-tags");
     const testingSelectedTagsEl = document.getElementById("testing-selected-tags");
@@ -123,6 +127,11 @@
     const classifierJourneyTrack = document.querySelector(".classifier-journey-steps");
     const classifierStepTrack = document.getElementById("classifier-step-track");
     const classifierScreens = Array.from(document.querySelectorAll(".classifier-screen"));
+    const testingLayoutObserver = typeof ResizeObserver === "function"
+      ? new ResizeObserver(() => {
+          window.requestAnimationFrame(syncTestingHelperCardHeight);
+        })
+      : null;
 
     const canvas = document.getElementById("draw");
     const ctx = canvas.getContext("2d");
@@ -465,6 +474,14 @@
     document.addEventListener("keydown", handleAddDoodlePopupKeydown);
     classifierJourneySteps.forEach((button) => {
       button.addEventListener("click", () => goToStep(Number(button.dataset.stepTarget)));
+    });
+
+    if (testingLayoutObserver) {
+      if (canvasCard) testingLayoutObserver.observe(canvasCard);
+      if (resultEl) testingLayoutObserver.observe(resultEl);
+    }
+    window.addEventListener("resize", () => {
+      window.requestAnimationFrame(syncTestingHelperCardHeight);
     });
     setupAddDoodleCanvas();
 
@@ -1104,6 +1121,61 @@
       syncClassifierJourney();
     }
 
+    function syncTestingHelperCardHeight() {
+      if (!testingHelperCardEl || !canvasCard || !resultEl || !resultTopEl) return;
+      const isDesktopTestingLayout = window.innerWidth > 1180;
+
+      if (currentStepIndex !== 3 || !isDesktopTestingLayout) {
+        const insightPanelEl = testingHelperCardEl.parentElement;
+        if (insightPanelEl) {
+          insightPanelEl.style.removeProperty("height");
+          insightPanelEl.style.removeProperty("min-height");
+          insightPanelEl.style.removeProperty("position");
+        }
+        testingHelperCardEl.style.removeProperty("position");
+        testingHelperCardEl.style.removeProperty("left");
+        testingHelperCardEl.style.removeProperty("right");
+        testingHelperCardEl.style.removeProperty("top");
+        testingHelperCardEl.style.removeProperty("height");
+        testingHelperCardEl.style.removeProperty("min-height");
+        testingHelperCardEl.style.removeProperty("max-height");
+        if (testingSuggestionsListEl) {
+          testingSuggestionsListEl.style.removeProperty("max-height");
+        }
+        return;
+      }
+
+      const insightPanelEl = testingHelperCardEl.parentElement;
+      if (!insightPanelEl) return;
+
+      const panelStyles = window.getComputedStyle(insightPanelEl);
+      const gap = parseFloat(panelStyles.rowGap || panelStyles.gap || "18") || 18;
+      const helperCardStyles = window.getComputedStyle(testingHelperCardEl);
+      const helperPadding =
+        (parseFloat(helperCardStyles.paddingTop || "0") || 0) +
+        (parseFloat(helperCardStyles.paddingBottom || "0") || 0);
+      const helperHeaderHeight = testingHelperCardEl.querySelector("h2")?.getBoundingClientRect().height || 0;
+      const insightPanelRect = insightPanelEl.getBoundingClientRect();
+      const canvasRect = canvasCard.getBoundingClientRect();
+      const topOffset = Math.max(0, Math.floor(resultTopEl.getBoundingClientRect().bottom - insightPanelRect.top + gap));
+      const availableHeight = Math.max(140, Math.floor(canvasRect.bottom - insightPanelRect.top - topOffset));
+      const listHeight = Math.max(72, availableHeight - helperPadding - helperHeaderHeight - 10);
+
+      insightPanelEl.style.removeProperty("height");
+      insightPanelEl.style.removeProperty("min-height");
+      insightPanelEl.style.position = "relative";
+      testingHelperCardEl.style.position = "absolute";
+      testingHelperCardEl.style.left = "0";
+      testingHelperCardEl.style.right = "0";
+      testingHelperCardEl.style.top = `${topOffset}px`;
+      testingHelperCardEl.style.height = `${availableHeight}px`;
+      testingHelperCardEl.style.minHeight = `${availableHeight}px`;
+      testingHelperCardEl.style.maxHeight = `${availableHeight}px`;
+      if (testingSuggestionsListEl) {
+        testingSuggestionsListEl.style.maxHeight = `${listHeight}px`;
+      }
+    }
+
     function syncClassifierJourney() {
       const maxUnlockedStep = getMaxUnlockedStep();
       currentStepIndex = Math.min(currentStepIndex, maxUnlockedStep);
@@ -1138,6 +1210,8 @@
           `calc(${progressPercent}% + ${progressPx}px)`
         );
       }
+
+      window.requestAnimationFrame(syncTestingHelperCardHeight);
     }
 
     function invalidateTrainedModel() {
@@ -1762,6 +1836,8 @@
         classifierReflectionAvailable = true;
         updateClassifierReflectionTrigger();
       }
+
+      window.requestAnimationFrame(syncTestingHelperCardHeight);
     }
 
     function setPredictionPlaceholder(messageKey = "imageClassifierTrainAndDraw") {
@@ -1781,6 +1857,8 @@
           ? ""
           : `<div class="prediction-placeholder-text">${t(messageKey)}</div>`;
       }
+
+      window.requestAnimationFrame(syncTestingHelperCardHeight);
     }
 
     function getCanvasPoint(event) {
