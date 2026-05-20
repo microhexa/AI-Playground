@@ -253,14 +253,14 @@
 }
 
 .rule-sequence-step-count {
-  font-size: 0.92rem;
+  font-size: 1.08rem;
   color: rgba(74, 78, 105, 0.84);
 }
 
 .rule-sequence-step-text {
   margin-top: 6px;
-  font-size: 1.06rem;
-  line-height: 1.3;
+  font-size: 1.3rem;
+  line-height: 1.38;
   color: var(--color-ink);
 }
 

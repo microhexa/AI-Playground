@@ -37,9 +37,13 @@
   const challengesCardEl = document.getElementById("vision-challenges-card");
   const challengeGridEl = document.getElementById("vision-challenge-grid");
   const VISION_CHAT_PROXY_URL = "https://ai-toolbox.justanoakleaf.workers.dev/";
+  const DEFAULT_HF_ENDPOINT = "https://router.huggingface.co/v1/chat/completions";
+  const DEFAULT_HF_MODEL = "CohereLabs/aya-vision-32b:cohere";
   const PROXY_CONFIG = window.VISION_CHAT_PROXY_CONFIG || {
     enabled: true,
-    url: VISION_CHAT_PROXY_URL
+    url: VISION_CHAT_PROXY_URL,
+    model: DEFAULT_HF_MODEL,
+    token: ""
   };
 
   const DRAW_LINE_WIDTH = 7.5;
@@ -98,11 +102,11 @@
       lessonKey: "visionChatLessonDescription"
     },
     {
-      id: "reasoning",
-      titleKey: "visionChatChallengeReasoningTitle",
-      copyKey: "visionChatChallengeReasoningCopy",
-      promptKey: "visionChatPromptExplain",
-      lessonKey: "visionChatLessonReasoning"
+      id: "counterexample",
+      titleKey: "visionChatChallengeDisagreeTitle",
+      copyKey: "visionChatChallengeDisagreeCopy",
+      promptKey: "visionChatPromptDisagree",
+      lessonKey: "visionChatLessonCounter"
     },
     {
       id: "confidence",
@@ -110,13 +114,6 @@
       copyKey: "visionChatChallengeConfidenceCopy",
       promptKey: "visionChatPromptSure",
       lessonKey: "visionChatLessonConfidence"
-    },
-    {
-      id: "counterexample",
-      titleKey: "visionChatChallengeCounterTitle",
-      copyKey: "visionChatChallengeCounterCopy",
-      promptKey: "visionChatPromptElse",
-      lessonKey: "visionChatLessonCounter"
     },
     {
       id: "generalization",
@@ -189,7 +186,8 @@
     reflectionCompleted: false,
     reflectionOpen: false,
     reflectionAvailable: false,
-    reflectionEliminated: {}
+    reflectionEliminated: {},
+    hfLastError: ""
   };
 
   function updateDocumentLanguage() {
@@ -211,6 +209,10 @@
     return Object.entries(values).reduce((message, [name, value]) => (
       message.replace(`{${name}}`, value)
     ), t(key));
+  }
+
+  function usesBackendProxy() {
+    return Boolean(PROXY_CONFIG.enabled && PROXY_CONFIG.url);
   }
 
   function shuffleArray(items) {
@@ -665,12 +667,9 @@
   }
 
   function getChallengeStatus(challengeId) {
+    if (!state.firstAnswerGiven) return "locked";
     if (state.completedChallenges.has(challengeId)) return "complete";
-
-    const nextChallenge = getNextChallenge();
-    if (!nextChallenge) return "complete";
-    if (nextChallenge.id === challengeId) return "active";
-    return "locked";
+    return "active";
   }
 
   function renderChallenges() {
@@ -679,25 +678,16 @@
       const status = getChallengeStatus(challenge.id);
 
       return `
-        <button class="vision-challenge-card is-${status}" type="button" data-challenge-id="${challenge.id}" data-challenge-status="${status}" role="listitem">
+        <div class="vision-challenge-card is-${status}" data-challenge-id="${challenge.id}" data-challenge-status="${status}" role="listitem">
           <span class="vision-challenge-card-row">
             <span class="vision-challenge-card-marker" aria-hidden="true">${status === "complete" ? "✓" : "○"}</span>
             <span class="vision-challenge-card-copy-wrap">
               <span class="vision-challenge-card-copy">${t(challenge.copyKey)}</span>
             </span>
           </span>
-        </button>
+        </div>
       `;
     }).join("");
-
-    challengeGridEl.querySelectorAll("[data-challenge-id]").forEach((button) => {
-      button.addEventListener("click", () => {
-        if (button.dataset.challengeStatus !== "active") return;
-        const challenge = challenges.find((entry) => entry.id === button.dataset.challengeId);
-        if (!challenge) return;
-        void submitPrompt(challenge.promptKey, { challengeId: challenge.id });
-      });
-    });
 
     if (!state.firstAnswerGiven) {
       challengesHelperEl.textContent = "";
@@ -723,9 +713,6 @@
     const enabled = state.hasSavedDrawing && !state.requestInFlight;
     chatInputEl.disabled = !enabled;
     sendButtonEl.disabled = !enabled;
-    challengeGridEl.querySelectorAll("button").forEach((button) => {
-      button.disabled = !enabled || button.dataset.challengeStatus !== "active";
-    });
   }
 
   function inferIntent(text, challengeId = null) {
@@ -736,15 +723,95 @@
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "");
 
+    const generalizationPhrases = [
+      "likes animals",
+      "who drew",
+      "person who drew",
+      "what kind of person",
+      "how old",
+      "their personality",
+      "what is their personality",
+      "are they",
+      "do they like",
+      "what do they like",
+      "is this person",
+      "what is the person like",
+      "what happened before",
+      "what happens next",
+      "what will happen",
+      "where is this",
+      "where are they",
+      "what country",
+      "what city",
+      "what room",
+      "what time of day",
+      "what season",
+      "what does it sound like",
+      "what can you hear",
+      "what does it smell like",
+      "what are they thinking",
+      "what are they feeling",
+      "how do they feel",
+      "what job",
+      "what is their name",
+      "is it a boy",
+      "is it a girl",
+      "is the artist",
+      "tegnede",
+      "kan du se om personen",
+      "hvor gammel",
+      "hvad for en person",
+      "hvad kan man hore",
+      "hvordan har personen det",
+      "hvad sker der bagefter",
+      "hvad skete der for",
+      "hvor er de",
+      "hvilket land",
+      "hvilken by"
+    ];
+
+    const generalizationKeywords = [
+      "artist",
+      "drawer",
+      "personality",
+      "personlighed",
+      "preferences",
+      "prefer",
+      "hobby",
+      "hobbies",
+      "age",
+      "gender",
+      "boyfriend",
+      "girlfriend",
+      "family",
+      "rich",
+      "poor",
+      "smart",
+      "kind",
+      "mean",
+      "future",
+      "past",
+      "before",
+      "after",
+      "next",
+      "yesterday",
+      "tomorrow",
+      "sound",
+      "hear",
+      "smell",
+      "taste",
+      "feel",
+      "thinking",
+      "job",
+      "name"
+    ];
+
     if (
-      normalized.includes("likes animals") ||
-      normalized.includes("who drew") ||
-      normalized.includes("person who drew") ||
-      normalized.includes("what kind of person") ||
-      normalized.includes("how old") ||
-      normalized.includes("their personality") ||
-      normalized.includes("tegnede") ||
-      normalized.includes("kan du se om personen")
+      generalizationPhrases.some((phrase) => normalized.includes(phrase)) ||
+      (
+        (normalized.includes("person") || normalized.includes("they") || normalized.includes("someone") || normalized.includes("artist"))
+        && generalizationKeywords.some((keyword) => normalized.includes(keyword))
+      )
     ) {
       return "generalization";
     }
@@ -763,8 +830,19 @@
       normalized.includes("something else") ||
       normalized.includes("could it be") ||
       normalized.includes("another") ||
+      normalized.startsWith("it's ") ||
+      normalized.startsWith("it is ") ||
+      normalized.startsWith("no, it's ") ||
+      normalized.startsWith("no it's ") ||
+      normalized.startsWith("thats ") ||
+      normalized.startsWith("that's ") ||
+      normalized.startsWith("you are wrong") ||
+      normalized.startsWith("you're wrong") ||
       normalized.includes("noget andet") ||
-      normalized.includes("kunne det vaere")
+      normalized.includes("kunne det vaere") ||
+      normalized.startsWith("det er ") ||
+      normalized.startsWith("nej, det er ") ||
+      normalized.startsWith("nej det er ")
     ) {
       return "counterexample";
     }
@@ -1157,13 +1235,15 @@
 
     try {
       if (shouldUseHuggingFace()) {
+        state.hfLastError = "";
         aiMessage.text = await requestHuggingFaceReply(userText, intent);
       } else {
-        aiMessage.text = t("visionChatHfStatusSimulated");
+        aiMessage.text = t("visionChatHfLiveDisabled");
       }
     } catch (error) {
-      aiMessage.text = formatMessage("visionChatHfErrorFallback", {
-        error: error instanceof Error ? error.message : String(error)
+      state.hfLastError = error instanceof Error ? error.message : String(error);
+      aiMessage.text = formatMessage("visionChatHfRequestFailed", {
+        error: state.hfLastError
       });
     } finally {
       state.requestInFlight = false;
@@ -1183,7 +1263,7 @@
   }
 
   function shouldUseHuggingFace() {
-    return Boolean(PROXY_CONFIG.enabled && PROXY_CONFIG.url);
+    return usesBackendProxy();
   }
 
   function extractProxyText(payload) {
@@ -1235,40 +1315,101 @@
     return "";
   }
 
+  function getMessagePlainText(message) {
+    if (!message) return "";
+    if (message.role === "user") {
+      return message.promptKey ? t(message.promptKey) : String(message.text || "").trim();
+    }
+
+    if (typeof message.text === "string") {
+      return message.text.trim();
+    }
+
+    return buildAiResponse(message.imageId, message.intent).trim();
+  }
+
+  function toApiRole(role) {
+    if (role === "ai") return "assistant";
+    if (role === "user") return "user";
+    return role;
+  }
+
+  function formatHistoryTextForApi(message, text) {
+    const trimmed = String(text || "").trim();
+    if (!trimmed) return "";
+    if (message.role === "user") return `Earlier user message: ${trimmed}`;
+    if (message.role === "ai") return `Earlier assistant reply: ${trimmed}`;
+    return trimmed;
+  }
+
+  function buildConversationMessages(intent) {
+    const imageDataUrl = savedCanvas.toDataURL("image/png");
+    const conversation = [
+      {
+        role: "system",
+        content: buildSystemPrompt(intent)
+      }
+    ];
+
+    const latestUserIndex = (() => {
+      for (let index = state.messages.length - 1; index >= 0; index -= 1) {
+        if (state.messages[index]?.role === "user") return index;
+      }
+      return -1;
+    })();
+
+    state.messages.forEach((message, index) => {
+      if (message.role === "ai" && message.text === t("visionChatThinking")) {
+        return;
+      }
+
+      const text = getMessagePlainText(message);
+      if (!text) return;
+
+      if (message.role === "user" && index === latestUserIndex) {
+        conversation.push({
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text
+            },
+            {
+              type: "image_url",
+              image_url: {
+                url: imageDataUrl
+              }
+            }
+          ]
+        });
+        return;
+      }
+
+      conversation.push({
+        role: toApiRole(message.role),
+        content: formatHistoryTextForApi(message, text)
+      });
+    });
+
+    return conversation;
+  }
+
   async function requestHuggingFaceReply(promptText, intent) {
-    const proxyUrl = PROXY_CONFIG.url || VISION_CHAT_PROXY_URL;
-    if (!proxyUrl) {
+    const endpoint = PROXY_CONFIG.url;
+    if (!endpoint) {
       throw new Error(t("visionChatHfNoToken"));
     }
 
-    const imageDataUrl = savedCanvas.toDataURL("image/png");
-    const response = await fetch(proxyUrl, {
+    const headers = {
+      "Content-Type": "application/json"
+    };
+
+    const response = await fetch(endpoint, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers,
       body: JSON.stringify({
-        messages: [
-          {
-            role: "system",
-            content: buildSystemPrompt(intent)
-          },
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: promptText
-              },
-              {
-                type: "image_url",
-                image_url: {
-                  url: imageDataUrl
-                }
-              }
-            ]
-          }
-        ]
+        model: PROXY_CONFIG.model || DEFAULT_HF_MODEL,
+        messages: buildConversationMessages(intent)
       })
     });
 
@@ -1288,10 +1429,7 @@
 
   function buildSystemPrompt(intent) {
     return [
-      t("visionChatHfSystemBase"),
-      intent === "generalization" ? t("visionChatHfSystemGeneralization") : "",
-      intent === "confidence" ? t("visionChatHfSystemConfidence") : "",
-      intent === "reasoning" ? t("visionChatHfSystemReasoning") : ""
+      t("visionChatHfSystemBase")
     ].filter(Boolean).join(" ");
   }
 

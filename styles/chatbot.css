@@ -703,6 +703,9 @@
   border-radius: 0;
   background: transparent;
   box-shadow: none;
+  font-family: Caroni, sans-serif;
+  font-size: var(--type-small);
+  line-height: 1.2;
   text-align: left;
   color: rgba(74, 78, 105, 0.7);
   justify-self: stretch;
