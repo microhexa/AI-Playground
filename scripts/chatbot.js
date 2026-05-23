@@ -460,16 +460,22 @@
       return;
     }
 
-    const lastReflectionTriggerIndex = getLastReflectionTriggerMessageIndex();
+    const lastAiMessageIndex = (() => {
+      for (let index = state.messages.length - 1; index >= 0; index -= 1) {
+        if (state.messages[index]?.role === "ai") return index;
+      }
+      return -1;
+    })();
 
-    chatLogEl.innerHTML = state.messages.map((message, index) => {
+    chatLogEl.innerHTML = state.messages.map((message) => {
+      const index = state.messages.indexOf(message);
       const roleLabel = message.role === "user" ? t("visionChatUserLabel") : t("visionChatAiLabel");
       const lessonButton = message.role === "ai" && message.lessonKey
         ? `<button class="vision-chat-lesson-trigger" type="button" data-lesson-message-index="${state.messages.indexOf(message)}" aria-label="${t("visionChatLessonKicker")}" title="${t("visionChatLessonKicker")}">?</button>`
         : "";
       const quizButton = message.role === "ai"
-        && message.intent === "generalization"
-        && index === lastReflectionTriggerIndex
+        && index === lastAiMessageIndex
+        && areAllChallengesComplete()
         && state.reflectionAvailable
         && !state.reflectionCompleted
         && !state.reflectionOpen
@@ -539,13 +545,8 @@
     return challenges.find((challenge) => !state.completedChallenges.has(challenge.id)) || null;
   }
 
-  function getLastReflectionTriggerMessageIndex() {
-    for (let index = state.messages.length - 1; index >= 0; index -= 1) {
-      if (state.messages[index]?.role === "ai" && state.messages[index]?.intent === "generalization") {
-        return index;
-      }
-    }
-    return -1;
+  function areAllChallengesComplete() {
+    return challenges.every((challenge) => state.completedChallenges.has(challenge.id));
   }
 
   function resetVisionReflectionState() {
@@ -667,9 +668,11 @@
   }
 
   function getChallengeStatus(challengeId) {
-    if (!state.firstAnswerGiven) return "locked";
+    if (!state.firstAnswerGiven) {
+      return challenges[0]?.id === challengeId ? "active" : "locked";
+    }
     if (state.completedChallenges.has(challengeId)) return "complete";
-    return "active";
+    return getNextChallenge()?.id === challengeId ? "active" : "locked";
   }
 
   function renderChallenges() {
@@ -1223,7 +1226,7 @@
       state.completedChallenges.add(newlyCompletedChallengeId);
     }
 
-    if (intent === "generalization" && !state.reflectionCompleted) {
+    if (areAllChallengesComplete() && !state.reflectionCompleted) {
       state.reflectionAvailable = true;
     }
 
@@ -1342,6 +1345,12 @@
     return trimmed;
   }
 
+  function formatLatestUserTextForApi(text, intent) {
+    const trimmed = String(text || "").trim();
+    if (!trimmed) return "";
+    return trimmed;
+  }
+
   function buildConversationMessages(intent) {
     const imageDataUrl = savedCanvas.toDataURL("image/png");
     const conversation = [
@@ -1372,7 +1381,7 @@
           content: [
             {
               type: "text",
-              text
+              text: formatLatestUserTextForApi(text, intent)
             },
             {
               type: "image_url",
@@ -1428,8 +1437,16 @@
   }
 
   function buildSystemPrompt(intent) {
+    const intentPromptKey = ({
+      description: "visionChatHfSystemDescription",
+      counterexample: "visionChatHfSystemCounterexample",
+      confidence: "visionChatHfSystemConfidence",
+      generalization: "visionChatHfSystemGeneralization"
+    })[intent];
+
     return [
-      t("visionChatHfSystemBase")
+      t("visionChatHfSystemBase"),
+      intentPromptKey ? t(intentPromptKey) : ""
     ].filter(Boolean).join(" ");
   }
 

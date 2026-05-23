@@ -589,17 +589,17 @@
 .vision-side-panel {
   align-self: stretch;
   width: 100%;
-  padding: 14px 14px 12px;
-  border: 2px dashed rgba(74, 78, 105, 0.22);
-  border-radius: 24px;
-  background: rgba(255, 251, 249, 0.24);
-  box-shadow: none;
+  padding: 18px 18px 16px;
+  border: 3px solid var(--vision-frame);
+  border-radius: 26px;
+  background: var(--vision-card-bg);
+  box-shadow: var(--vision-shadow-soft);
 }
 
 .vision-side-panel::before {
   inset: 8px;
-  border-radius: 16px;
-  border: 1px solid rgba(74, 78, 105, 0.08);
+  border-radius: 18px;
+  border: 1.5px solid rgba(74, 78, 105, 0.14);
 }
 
 .vision-side-panel .vision-inline-tools-header {
@@ -684,14 +684,11 @@
 .vision-challenge-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   align-items: stretch;
   width: 100%;
+  min-height: 0;
   text-align: left;
-}
-
-.vision-inline-tools.is-locked .vision-challenge-list {
-  opacity: 0.82;
 }
 
 .vision-challenge-card {
@@ -761,7 +758,7 @@
   width: 100%;
   align-items: flex-start;
   justify-content: flex-start;
-  gap: 3px;
+  gap: 8px;
   text-align: left;
 }
 
