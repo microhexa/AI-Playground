@@ -1283,7 +1283,7 @@ function updatePageMeta() {
         document.title = t("pageTitleCurious");
     } else if (currentPath.endsWith("rule-based-ai.html")) {
         document.title = t("pageTitleRuleBased");
-    } else if (currentPath.endsWith("chatbot.html")) {
+    } else if (currentPath.endsWith("vision-chat.html")) {
         document.title = t("pageTitleChatbot");
     } else {
         document.title = t("pageTitleHome");
@@ -1364,7 +1364,7 @@ function launchChatbotModule() {
     sessionStorage.setItem(HOME_SCREEN_KEY, LEVEL_MENU_MODE);
     hideLevelIntro(true);
     hideModuleMission(true);
-    window.location.href = "chatbot.html";
+    window.location.href = "vision-chat.html";
 }
 
 if (enBtn) {
@@ -1583,7 +1583,7 @@ if (returnBtn) {
             return;
         }
 
-        if (currentPath.endsWith("chatbot.html")) {
+        if (currentPath.endsWith("vision-chat.html")) {
             sessionStorage.setItem(HOME_SCREEN_KEY, LEVEL_MENU_MODE);
             sessionStorage.setItem(SKIP_HOME_TRANSITION_KEY, "true");
             window.location.href = "index.html";
