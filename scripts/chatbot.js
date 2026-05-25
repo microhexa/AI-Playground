@@ -38,7 +38,7 @@
   const challengeGridEl = document.getElementById("vision-challenge-grid");
   const VISION_CHAT_PROXY_URL = "https://ai-toolbox.justanoakleaf.workers.dev/";
   const DEFAULT_HF_ENDPOINT = "https://router.huggingface.co/v1/chat/completions";
-  const DEFAULT_HF_MODEL = "CohereLabs/aya-vision-32b:cohere";
+  const DEFAULT_HF_MODEL = "google/gemma-3-27b-it";
   const PROXY_CONFIG = window.VISION_CHAT_PROXY_CONFIG || {
     enabled: true,
     url: VISION_CHAT_PROXY_URL,
@@ -866,7 +866,8 @@
       normalized.includes("visible") ||
       normalized.includes("describe") ||
       normalized.includes("in this image") ||
-      normalized.includes("hvad ser du")
+      normalized.includes("hvad ser du") ||
+      normalized.includes("hvad kan du se")
     ) {
       return "description";
     }
@@ -1340,8 +1341,6 @@
   function formatHistoryTextForApi(message, text) {
     const trimmed = String(text || "").trim();
     if (!trimmed) return "";
-    if (message.role === "user") return `Earlier user message: ${trimmed}`;
-    if (message.role === "ai") return `Earlier assistant reply: ${trimmed}`;
     return trimmed;
   }
 
