@@ -23,6 +23,41 @@
   --vision-font-lg: var(--type-large);
 }
 
+.classifier-confetti-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 1100;
+}
+
+.classifier-confetti-piece {
+  position: absolute;
+  top: -12vh;
+  width: 12px;
+  height: 20px;
+  border-radius: 4px;
+  opacity: 0.95;
+  animation: classifier-confetti-fall 1400ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  transform-origin: center;
+}
+
+@keyframes classifier-confetti-fall {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(0.9);
+    opacity: 0;
+  }
+
+  10% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: translate3d(var(--confetti-x, 0px), 110vh, 0) rotate(var(--confetti-rotate, 540deg)) scale(1);
+    opacity: 0;
+  }
+}
+
 .vision-chat-return-button {
   position: absolute;
   top: 22px;
@@ -579,6 +614,14 @@
   font-size: var(--vision-font-sm);
 }
 
+.vision-chat-send-secondary {
+  background: linear-gradient(180deg, #fff8ef 0%, #f7efe3 62%, #ece1d4 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.82),
+    inset 0 -3px 0 rgba(74, 78, 105, 0.1),
+    0 8px 18px rgba(74, 78, 105, 0.1);
+}
+
 .vision-inline-tools {
   margin-top: 0;
   padding: 0;
@@ -653,6 +696,8 @@
 }
 
 .vision-challenges-side-card {
+  display: flex;
+  flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
   text-align: left;
@@ -684,7 +729,8 @@
 .vision-challenge-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  flex: 1 1 auto;
+  gap: 6px;
   align-items: stretch;
   width: 100%;
   min-height: 0;
@@ -702,9 +748,9 @@
   box-shadow: none;
   font-family: Caroni, sans-serif;
   font-size: var(--type-small);
-  line-height: 1.2;
+  line-height: 1.05;
   text-align: left;
-  color: rgba(74, 78, 105, 0.7);
+  color: rgba(27, 38, 49, 0.96);
   justify-self: stretch;
 }
 
@@ -728,18 +774,6 @@
   opacity: 1;
 }
 
-.vision-challenge-card.is-locked {
-  color: rgba(74, 78, 105, 0.56);
-}
-
-.vision-challenge-card.is-complete {
-  color: rgba(54, 115, 72, 0.92);
-}
-
-.vision-challenge-card.is-active {
-  color: rgba(27, 38, 49, 0.92);
-}
-
 .vision-challenges-side-card .vision-challenge-card:hover:not(:disabled),
 .vision-challenges-side-card .vision-challenge-card:focus-visible {
   transform: none;
@@ -758,25 +792,17 @@
   width: 100%;
   align-items: flex-start;
   justify-content: flex-start;
-  gap: 8px;
+  gap: 6px;
   text-align: left;
 }
 
 .vision-challenge-card-marker {
   display: block;
-  flex: 0 0 16px;
-  font-size: var(--type-small);
-  line-height: 1.25;
-  color: rgba(74, 78, 105, 0.72);
+  flex: 0 0 12px;
+  font-size: 0.9rem;
+  line-height: 1.05;
+  color: rgba(27, 38, 49, 0.92);
   text-align: left;
-}
-
-.vision-challenge-card.is-complete .vision-challenge-card-marker {
-  color: rgba(54, 115, 72, 0.98);
-}
-
-.vision-challenge-card.is-active .vision-challenge-card-marker {
-  color: rgba(74, 78, 105, 0.86);
 }
 
 .vision-challenge-card-copy-wrap {
@@ -795,9 +821,38 @@
   display: block;
   width: 100%;
   font-size: var(--type-medium);
-  line-height: 1.12;
+  line-height: 1.02;
   color: currentColor;
   text-align: left;
+}
+
+.vision-reflection-start-btn {
+  width: 100%;
+  margin-top: auto;
+  padding: 10px 16px 11px;
+  border: 2.5px solid rgba(74, 78, 105, 0.82);
+  border-radius: 999px;
+  background: rgba(255, 241, 191, 0.92);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.78),
+    0 4px 10px rgba(74, 78, 105, 0.12);
+  color: var(--color-ink);
+  font-family: Caroni, sans-serif;
+  font-size: 0.98rem;
+  line-height: 1.2;
+}
+
+.vision-reflection-start-btn:hover:not(:disabled),
+.vision-reflection-start-btn:focus-visible {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.82),
+    0 6px 12px rgba(74, 78, 105, 0.14);
+}
+
+.vision-reflection-start-btn:active:not(:disabled) {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 3px 8px rgba(74, 78, 105, 0.12);
 }
 
 
@@ -1066,7 +1121,49 @@
 .classifier-reflection-actions {
   margin-top: 18px;
   display: flex;
-  justify-content: center;
+  justify-content: stretch;
+  gap: 10px;
+  width: 100%;
+}
+
+.classifier-reflection-actions .vision-chat-send {
+  flex: 1 1 0;
+  min-height: 0;
+  padding: 16px 22px;
+  border-radius: 26px;
+  background: linear-gradient(180deg, #ffc1c1 0%, #f9afaf 62%, #ef9c9c 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.72),
+    inset 0 -3px 0 rgba(74, 78, 105, 0.12),
+    0 8px 18px rgba(74, 78, 105, 0.14);
+}
+
+.classifier-reflection-actions .vision-chat-send::before {
+  inset: 8px;
+  border-radius: 18px;
+  border: 1.5px solid rgba(74, 78, 105, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+.classifier-reflection-actions .vision-chat-send:hover:not(:disabled),
+.classifier-reflection-actions .vision-chat-send:focus-visible {
+  transform: translateY(-3px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.76),
+    inset 0 -3px 0 rgba(74, 78, 105, 0.12),
+    0 10px 20px rgba(74, 78, 105, 0.16);
+}
+
+.classifier-reflection-actions .vision-chat-send:focus-visible {
+  outline-offset: 4px;
+}
+
+.classifier-reflection-actions .vision-chat-send:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.classifier-reflection-actions .vision-chat-send-secondary {
+  background: linear-gradient(180deg, #fff8ef 0%, #f7efe3 62%, #ece1d4 100%);
 }
 
 @media (max-width: 1080px) {

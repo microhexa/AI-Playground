@@ -113,6 +113,7 @@
     const predictionHelpStackedBarEl = document.getElementById("prediction-help-stacked-bar");
     const closePredictionHelpBtn = document.getElementById("close-prediction-help-btn");
     const classifierReflectionPopup = document.getElementById("classifier-reflection-popup");
+    const classifierConfettiLayerEl = document.getElementById("classifier-confetti-layer");
     const classifierReflectionIntroEl = document.getElementById("classifier-reflection-intro");
     const classifierReflectionProgressEl = document.getElementById("classifier-reflection-progress");
     const classifierReflectionQuestionEl = document.getElementById("classifier-reflection-question");
@@ -121,6 +122,8 @@
     const classifierReflectionSummaryEl = document.getElementById("classifier-reflection-summary");
     const classifierReflectionSummaryListEl = document.getElementById("classifier-reflection-summary-list");
     const classifierReflectionContinueBtn = document.getElementById("classifier-reflection-continue-btn");
+    const classifierReflectionExitBtn = document.getElementById("classifier-reflection-exit-btn");
+    const classifierReflectionCloseBtn = document.getElementById("classifier-reflection-close");
     const classifierReflectionStartBtn = document.getElementById("classifier-reflection-start-btn");
     const classifierJourney = document.getElementById("classifier-journey");
     const classifierJourneySteps = Array.from(document.querySelectorAll("[data-step-target]"));
@@ -160,6 +163,8 @@
     let addDoodleIsDrawing = false;
     let addDoodleStrokeMoved = false;
     let addDoodleHasDrawn = false;
+    let addDoodleStrokePaths = [];
+    let activeAddDoodleStrokePath = null;
     let classifierReflectionIndex = 0;
     let classifierReflectionCompleted = false;
     let classifierReflectionOpen = false;
@@ -167,6 +172,7 @@
     let classifierReflectionAvailable = false;
     let classifierHasPredictionResult = false;
     let classifierReflectionEliminated = {};
+    let classifierConfettiCleanupTimeoutId = null;
     let testingSuggestionClassId = "";
     let testingSuggestionClassSignature = "";
     const classifierImageSize = 64;
@@ -358,6 +364,7 @@
       if (classifierReflectionQuestionEl) classifierReflectionQuestionEl.hidden = classifierReflectionCompleted;
       if (classifierReflectionSummaryEl) classifierReflectionSummaryEl.hidden = !classifierReflectionCompleted;
       if (classifierReflectionContinueBtn) classifierReflectionContinueBtn.hidden = !classifierReflectionCompleted;
+      if (classifierReflectionExitBtn) classifierReflectionExitBtn.hidden = !classifierReflectionCompleted;
 
       if (classifierReflectionCompleted) {
         renderClassifierReflectionSummary();
@@ -392,10 +399,48 @@
       document.getElementById("classify-btn")?.focus();
     }
 
+    function clearClassifierConfettiBurst() {
+      if (classifierConfettiCleanupTimeoutId !== null) {
+        window.clearTimeout(classifierConfettiCleanupTimeoutId);
+        classifierConfettiCleanupTimeoutId = null;
+      }
+      if (classifierConfettiLayerEl) {
+        classifierConfettiLayerEl.innerHTML = "";
+      }
+    }
+
+    function launchClassifierConfettiBurst() {
+      if (!classifierConfettiLayerEl) return;
+
+      clearClassifierConfettiBurst();
+
+      const colors = ["#f9c74f", "#f3722c", "#f94144", "#90be6d", "#577590", "#f9844a"];
+      const pieceCount = 42;
+
+      for (let index = 0; index < pieceCount; index += 1) {
+        const piece = document.createElement("span");
+        piece.className = "classifier-confetti-piece";
+        piece.style.left = `${42 + Math.random() * 16}%`;
+        piece.style.background = colors[index % colors.length];
+        piece.style.animationDelay = `${Math.random() * 140}ms`;
+        piece.style.animationDuration = `${1200 + Math.random() * 420}ms`;
+        piece.style.setProperty("--confetti-x", `${(Math.random() - 0.5) * 520}px`);
+        piece.style.setProperty("--confetti-rotate", `${360 + Math.random() * 720}deg`);
+        piece.style.width = `${9 + Math.random() * 7}px`;
+        piece.style.height = `${14 + Math.random() * 12}px`;
+        classifierConfettiLayerEl.appendChild(piece);
+      }
+
+      classifierConfettiCleanupTimeoutId = window.setTimeout(() => {
+        clearClassifierConfettiBurst();
+      }, 1900);
+    }
+
     function handleClassifierReflectionChoice(question, selectedValue, button) {
       if (classifierReflectionCompleted) return;
 
       if (selectedValue === question.correct) {
+        launchClassifierConfettiBurst();
         classifierReflectionIndex += 1;
         if (classifierReflectionIndex >= classifierReflectionQuestions.length) {
           classifierReflectionCompleted = true;
@@ -450,6 +495,10 @@
     cancelAddDoodleBtn.addEventListener("click", closeAddDoodlePopup);
     confirmAddDoodleBtn.addEventListener("click", commitCustomDoodle);
     classifierReflectionContinueBtn?.addEventListener("click", closeClassifierReflectionPopup);
+    classifierReflectionExitBtn?.addEventListener("click", () => {
+      window.location.href = "index.html";
+    });
+    classifierReflectionCloseBtn?.addEventListener("click", closeClassifierReflectionPopup);
     classifierReflectionStartBtn?.addEventListener("click", openClassifierReflectionPopup);
     cancelCustomClassBtn.addEventListener("click", closeCustomClassPopup);
     confirmCustomClassBtn.addEventListener("click", commitCustomClassName);
@@ -899,6 +948,8 @@
       addDoodleCtx.lineWidth = 9;
       addDoodleHasDrawn = false;
       addDoodleStrokeMoved = false;
+      addDoodleStrokePaths = [];
+      activeAddDoodleStrokePath = null;
       confirmAddDoodleBtn.disabled = true;
     }
 
@@ -917,6 +968,7 @@
       addDoodleStrokeMoved = false;
       addDoodleCanvas.setPointerCapture(event.pointerId);
       const { x, y } = getAddDoodleCanvasPoint(event);
+      activeAddDoodleStrokePath = [{ x, y }];
       addDoodleCtx.beginPath();
       addDoodleCtx.moveTo(x, y);
     }
@@ -926,6 +978,7 @@
 
       addDoodleStrokeMoved = true;
       const { x, y } = getAddDoodleCanvasPoint(event);
+      activeAddDoodleStrokePath?.push({ x, y });
       addDoodleCtx.lineTo(x, y);
       addDoodleCtx.stroke();
       addDoodleHasDrawn = true;
@@ -937,6 +990,7 @@
 
       if (!addDoodleStrokeMoved) {
         const { x, y } = getAddDoodleCanvasPoint(event);
+        activeAddDoodleStrokePath = [{ x, y }];
         addDoodleCtx.beginPath();
         addDoodleCtx.arc(x, y, addDoodleCtx.lineWidth * 0.38, 0, Math.PI * 2);
         addDoodleCtx.fill();
@@ -944,7 +998,12 @@
         confirmAddDoodleBtn.disabled = false;
       }
 
+      if (activeAddDoodleStrokePath?.length) {
+        addDoodleStrokePaths.push(activeAddDoodleStrokePath);
+      }
+
       addDoodleIsDrawing = false;
+      activeAddDoodleStrokePath = null;
       addDoodleCtx.beginPath();
 
       if (typeof event.pointerId === "number" && addDoodleCanvas.hasPointerCapture(event.pointerId)) {
@@ -970,7 +1029,14 @@
       if (!section) return;
 
       invalidateTrainedModel();
-      const previewImage = addDoodleCanvas.toDataURL("image/png");
+      const centeredPreviewCanvas = renderCenteredStrokePreview(
+        addDoodleStrokePaths,
+        addDoodleCanvas.width,
+        addDoodleCanvas.height,
+        112,
+        3
+      );
+      const previewImage = centeredPreviewCanvas.toDataURL("image/png");
       const sample = {
         id: `${addDoodleTargetClassId}-custom-${Date.now()}-${customDoodleCounter++}`,
         preview: "CUSTOM",
@@ -1378,10 +1444,15 @@
 
         const syncThumb = () => {
           const maxScroll = Math.max(1, scrollArea.scrollHeight - scrollArea.clientHeight);
-          const trackHeight = rail.clientHeight || scrollArea.clientHeight;
+          const trackHeight = Math.max(108, scrollArea.clientHeight - 24);
+          const railTopInset = 1;
+          const railBottomInset = 5;
+          rail.style.height = `${trackHeight}px`;
           const thumbHeight = Math.max(72, (scrollArea.clientHeight / Math.max(scrollArea.scrollHeight, 1)) * trackHeight);
-          const travel = Math.max(0, trackHeight - thumbHeight);
-          const top = maxScroll > 0 ? (scrollArea.scrollTop / maxScroll) * travel : 0;
+          const travel = Math.max(0, trackHeight - thumbHeight - railTopInset - railBottomInset);
+          const top = maxScroll > 0
+            ? railTopInset + ((scrollArea.scrollTop / maxScroll) * travel)
+            : railTopInset;
 
           thumb.style.height = `${thumbHeight}px`;
           thumb.style.transform = `translateY(${top}px)`;
@@ -1402,9 +1473,11 @@
             return;
           }
 
-          const trackHeight = rail.clientHeight || scrollArea.clientHeight;
+          const trackHeight = rail.clientHeight || Math.max(108, scrollArea.clientHeight - 24);
+          const railTopInset = 1;
+          const railBottomInset = 5;
           const thumbHeight = thumb.getBoundingClientRect().height;
-          const travel = Math.max(1, trackHeight - thumbHeight);
+          const travel = Math.max(1, trackHeight - thumbHeight - railTopInset - railBottomInset);
           const startY = event.clientY;
           const startScrollTop = scrollArea.scrollTop;
 
@@ -1431,12 +1504,17 @@
           }
 
           const rect = rail.getBoundingClientRect();
+          const railTopInset = 1;
+          const railBottomInset = 5;
           const clickY = event.clientY - rect.top;
           const maxScroll = Math.max(0, scrollArea.scrollHeight - scrollArea.clientHeight);
           const thumbHeight = thumb.getBoundingClientRect().height;
-          const travel = Math.max(1, rail.clientHeight - thumbHeight);
-          const targetTop = Math.max(0, Math.min(travel, clickY - (thumbHeight / 2)));
-          const targetScroll = (targetTop / travel) * maxScroll;
+          const travel = Math.max(1, rail.clientHeight - thumbHeight - railTopInset - railBottomInset);
+          const targetTop = Math.max(
+            railTopInset,
+            Math.min(railTopInset + travel, clickY - (thumbHeight / 2))
+          );
+          const targetScroll = ((targetTop - railTopInset) / travel) * maxScroll;
 
           scrollArea.scrollTop = targetScroll;
         });
@@ -1944,6 +2022,124 @@
         classifierImageSize,
         classifierImageSize
       );
+    }
+
+    function centerCanvasForClassifier(sourceCtx, width, height, targetSize = 64) {
+      const image = sourceCtx.getImageData(0, 0, width, height);
+      const data = image.data;
+
+      let minX = width;
+      let minY = height;
+      let maxX = -1;
+      let maxY = -1;
+      let foundInk = false;
+
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const i = (y * width + x) * 4;
+          const average = (data[i] + data[i + 1] + data[i + 2]) / 3;
+          const isInk = average < 200;
+
+          if (isInk) {
+            foundInk = true;
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+          }
+        }
+      }
+
+      const centeredCanvas = document.createElement("canvas");
+      centeredCanvas.width = targetSize;
+      centeredCanvas.height = targetSize;
+      const centeredCtx = centeredCanvas.getContext("2d");
+
+      centeredCtx.fillStyle = "white";
+      centeredCtx.fillRect(0, 0, targetSize, targetSize);
+
+      if (!foundInk) {
+        return centeredCanvas;
+      }
+
+      const boxWidth = maxX - minX + 1;
+      const boxHeight = maxY - minY + 1;
+      const offsetX = Math.floor((targetSize - boxWidth) / 2);
+      const offsetY = Math.floor((targetSize - boxHeight) / 2);
+
+      centeredCtx.drawImage(
+        sourceCtx.canvas,
+        minX, minY, boxWidth, boxHeight,
+        offsetX, offsetY, boxWidth, boxHeight
+      );
+
+      return centeredCanvas;
+    }
+
+    function renderCenteredStrokePreview(strokePaths, sourceWidth, sourceHeight, size = 112, lineWidth = 3) {
+      const previewCanvas = document.createElement("canvas");
+      previewCanvas.width = size;
+      previewCanvas.height = size;
+      const previewCtx = previewCanvas.getContext("2d");
+
+      previewCtx.fillStyle = "white";
+      previewCtx.fillRect(0, 0, size, size);
+      previewCtx.strokeStyle = "#111111";
+      previewCtx.fillStyle = "#111111";
+      previewCtx.lineCap = "round";
+      previewCtx.lineJoin = "round";
+      previewCtx.lineWidth = lineWidth;
+
+      const points = strokePaths.flat();
+      if (!points.length) {
+        return previewCanvas;
+      }
+
+      const minX = Math.min(...points.map((point) => point.x));
+      const maxX = Math.max(...points.map((point) => point.x));
+      const minY = Math.min(...points.map((point) => point.y));
+      const maxY = Math.max(...points.map((point) => point.y));
+      const scaleX = size / sourceWidth;
+      const scaleY = size / sourceHeight;
+      const boxWidth = (maxX - minX + 1) * scaleX;
+      const boxHeight = (maxY - minY + 1) * scaleY;
+      const offsetX = Math.floor((size - boxWidth) / 2);
+      const offsetY = Math.floor((size - boxHeight) / 2);
+
+      strokePaths.forEach((path) => {
+        if (!path.length) return;
+
+        if (path.length === 1) {
+          const point = path[0];
+          previewCtx.beginPath();
+          previewCtx.arc(
+            offsetX + ((point.x - minX) * scaleX),
+            offsetY + ((point.y - minY) * scaleY),
+            lineWidth * 0.5,
+            0,
+            Math.PI * 2
+          );
+          previewCtx.fill();
+          return;
+        }
+
+        previewCtx.beginPath();
+        previewCtx.moveTo(
+          offsetX + ((path[0].x - minX) * scaleX),
+          offsetY + ((path[0].y - minY) * scaleY)
+        );
+
+        for (let index = 1; index < path.length; index += 1) {
+          previewCtx.lineTo(
+            offsetX + ((path[index].x - minX) * scaleX),
+            offsetY + ((path[index].y - minY) * scaleY)
+          );
+        }
+
+        previewCtx.stroke();
+      });
+
+      return previewCanvas;
     }
 
     function normalizeCanvasForClassifier(sourceCtx, width, height, targetSize = 64) {

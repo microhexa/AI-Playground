@@ -561,8 +561,9 @@
         inset 0 -4px 0 rgba(74, 78, 105, 0.12),
         0 6px 0 rgba(74, 78, 105, 0.18);
     color: var(--color-ink);
-    font-size: 1.7rem;
+    font-size: 2rem;
     line-height: 1;
+    padding-bottom: 11px;
     cursor: pointer;
 }
 
@@ -1502,7 +1503,8 @@
         right: 12px;
         width: 44px;
         height: 44px;
-        font-size: 1.45rem;
+        font-size: 1.7rem;
+        padding-bottom: 9px;
     }
 
     .module-mission-start {

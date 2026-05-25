@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="./styles/image-classifier.css">
 </head>
 <body class="image-classifier-page">
+  <div id="classifier-confetti-layer" class="classifier-confetti-layer" aria-hidden="true"></div>
   <div class="page image-classifier-layout">
     <button id="return-btn" class="level-back-button classifier-return-button" type="button" data-i18n="menuBack">Back</button>
     <div class="classifier-page-title">
@@ -89,6 +90,7 @@
 
     <div id="classifier-reflection-popup" class="popup hidden" aria-hidden="true">
       <div class="popup-content classifier-reflection-popup" role="dialog" aria-modal="true" aria-labelledby="classifier-reflection-title">
+        <button id="classifier-reflection-close" class="classifier-reflection-close" type="button" aria-label="Close key takeaways panel">&times;</button>
         <h2 id="classifier-reflection-title" data-i18n="imageClassifierReflectionTitle">Key takeaways</h2>
         <div class="classifier-reflection-card">
           <p id="classifier-reflection-intro" class="classifier-reflection-intro" data-i18n="imageClassifierReflectionPrompt">Choose the best answer for each question.</p>
@@ -102,7 +104,8 @@
           </div>
         </div>
         <div class="classifier-reflection-actions">
-          <button id="classifier-reflection-continue-btn" class="classifier-continue-btn" type="button" hidden data-i18n="imageClassifierReflectionContinue">Keep exploring</button>
+          <button id="classifier-reflection-continue-btn" class="vision-chat-send" type="button" hidden data-i18n="imageClassifierReflectionContinue">Keep exploring</button>
+          <button id="classifier-reflection-exit-btn" class="vision-chat-send vision-chat-send-secondary" type="button" hidden data-i18n="moduleExit">Exit module</button>
         </div>
       </div>
     </div>

@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="./styles/main.css">
 </head>
 <body class="vision-chat-page">
+  <div id="vision-confetti-layer" class="classifier-confetti-layer" aria-hidden="true"></div>
   <div class="page vision-chat-layout">
     <button id="return-btn" class="level-back-button vision-chat-return-button" type="button" data-i18n="menuBack">Back</button>
     <div class="vision-chat-page-title">
@@ -24,12 +25,6 @@
             </div>
 
             <div id="vision-chat-log" class="vision-chat-log" aria-live="polite"></div>
-
-            <div id="vision-lesson-popup" class="vision-lesson-popup" hidden>
-              <button id="vision-lesson-popup-close" class="vision-lesson-popup-close" type="button" aria-label="Close what happened popup">&times;</button>
-              <div class="vision-lesson-kicker" data-i18n="visionChatLessonKicker">What happened</div>
-              <p id="vision-lesson-text" class="vision-lesson-text"></p>
-            </div>
 
             <form id="vision-chat-form" class="vision-chat-form">
               <button id="vision-open-draw" class="vision-chat-attach" type="button" aria-label="Draw doodle" title="Draw doodle">
@@ -54,10 +49,10 @@
               <div class="vision-inline-tools-header">
                 <div>
                   <h3 id="vision-chat-challenges-title" data-i18n="visionChatChallengesTitle">Challenge cards</h3>
-                  <p id="vision-chat-challenges-helper" data-i18n="visionChatChallengesLocked">Ask the AI one question first to unlock the challenge cards.</p>
                 </div>
               </div>
               <div id="vision-challenge-grid" class="vision-challenge-list" role="list"></div>
+              <button id="vision-reflection-start-btn" class="vision-chat-send vision-reflection-start-btn hidden" type="button" hidden data-i18n="imageClassifierReflectionStart">Start quick quiz</button>
             </section>
           </div>
         </div>
@@ -68,9 +63,9 @@
 
   <div id="vision-reflection-popup" class="popup hidden" aria-hidden="true">
     <div class="popup-content classifier-reflection-popup" role="dialog" aria-modal="true" aria-labelledby="vision-reflection-title">
+      <button id="vision-reflection-close" class="module-mission-close" type="button" aria-label="Close key takeaways panel">&times;</button>
       <h2 id="vision-reflection-title" data-i18n="visionChatReflectionTitle">Key takeaways</h2>
       <div class="classifier-reflection-card">
-        <p id="vision-reflection-intro" class="classifier-reflection-intro" data-i18n="visionChatReflectionPrompt">Choose the best answer for each question.</p>
         <p id="vision-reflection-progress" class="classifier-reflection-progress" aria-live="polite">1 / 3</p>
         <div id="vision-reflection-question" class="classifier-reflection-question" aria-live="polite">
           <p id="vision-reflection-stem" class="classifier-reflection-stem"></p>
@@ -82,6 +77,7 @@
       </div>
       <div class="classifier-reflection-actions">
         <button id="vision-reflection-continue-btn" class="vision-chat-send" type="button" hidden data-i18n="visionChatReflectionContinue">Keep exploring</button>
+        <button id="vision-reflection-exit-btn" class="vision-chat-send vision-chat-send-secondary" type="button" hidden data-i18n="moduleExit">Exit module</button>
       </div>
     </div>
   </div>
@@ -92,7 +88,6 @@
       <button id="vision-close-doodle" class="vision-doodle-close" type="button" aria-label="Close drawing panel">&times;</button>
       <div class="vision-chat-card-header">
         <h2 id="vision-doodle-modal-title" data-i18n="visionChatCanvasTitle">Draw a doodle</h2>
-        <p data-i18n="visionChatCanvasHelper">Edit your doodle here, then press Save doodle to update what the AI uses.</p>
       </div>
       <div class="vision-doodle-modal-body">
         <div class="vision-doodle-toolbar">

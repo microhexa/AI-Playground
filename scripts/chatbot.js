@@ -6,10 +6,8 @@
   const chatFormEl = document.getElementById("vision-chat-form");
   const chatInputEl = document.getElementById("vision-chat-input");
   const sendButtonEl = document.getElementById("vision-chat-send");
-  const lessonPopupEl = document.getElementById("vision-lesson-popup");
-  const lessonPopupCloseEl = document.getElementById("vision-lesson-popup-close");
-  const lessonTextEl = document.getElementById("vision-lesson-text");
   const visionReflectionPopup = document.getElementById("vision-reflection-popup");
+  const visionConfettiLayerEl = document.getElementById("vision-confetti-layer");
   const visionReflectionIntroEl = document.getElementById("vision-reflection-intro");
   const visionReflectionProgressEl = document.getElementById("vision-reflection-progress");
   const visionReflectionQuestionEl = document.getElementById("vision-reflection-question");
@@ -18,6 +16,9 @@
   const visionReflectionSummaryEl = document.getElementById("vision-reflection-summary");
   const visionReflectionSummaryListEl = document.getElementById("vision-reflection-summary-list");
   const visionReflectionContinueBtn = document.getElementById("vision-reflection-continue-btn");
+  const visionReflectionExitBtn = document.getElementById("vision-reflection-exit-btn");
+  const visionReflectionCloseBtn = document.getElementById("vision-reflection-close");
+  const visionReflectionStartBtn = document.getElementById("vision-reflection-start-btn");
   const challengesHelperEl = document.getElementById("vision-chat-challenges-helper");
   const selectedImageCopyEl = document.getElementById("vision-selected-image-copy");
   const doodleStatusEl = document.getElementById("vision-doodle-status");
@@ -187,7 +188,8 @@
     reflectionOpen: false,
     reflectionAvailable: false,
     reflectionEliminated: {},
-    hfLastError: ""
+    hfLastError: "",
+    confettiCleanupTimeoutId: null
   };
 
   function updateDocumentLanguage() {
@@ -401,21 +403,7 @@
     state.reflectionCompleted = false;
     closeVisionReflectionPopup({ restoreFocus: false });
     resetVisionReflectionState();
-    if (lessonPopupEl) lessonPopupEl.hidden = true;
     chatInputEl.value = "";
-  }
-
-  function closeLessonPopup() {
-    state.openLessonMessageIndex = null;
-    if (lessonPopupEl) lessonPopupEl.hidden = true;
-  }
-
-  function openLessonPopup(messageIndex) {
-    const message = state.messages[messageIndex];
-    if (!message?.lessonKey || !lessonPopupEl || !lessonTextEl) return;
-    state.openLessonMessageIndex = messageIndex;
-    lessonTextEl.textContent = t(message.lessonKey);
-    lessonPopupEl.hidden = false;
   }
 
   function renderSavedDrawingState() {
@@ -426,10 +414,7 @@
       return;
     }
 
-    const image = getSavedImage();
-    selectedImageCopyEl.textContent = image
-      ? formatMessage("visionChatSavedDrawing", { image: t(image.labelKey) })
-      : t("visionChatSaveHint");
+    selectedImageCopyEl.textContent = t("visionChatSavedHint");
 
     doodleStatusEl.textContent = state.drawingDirty
       ? t("visionChatUnsavedChanges")
@@ -460,54 +445,19 @@
       return;
     }
 
-    const lastAiMessageIndex = (() => {
-      for (let index = state.messages.length - 1; index >= 0; index -= 1) {
-        if (state.messages[index]?.role === "ai") return index;
-      }
-      return -1;
-    })();
-
     chatLogEl.innerHTML = state.messages.map((message) => {
-      const index = state.messages.indexOf(message);
       const roleLabel = message.role === "user" ? t("visionChatUserLabel") : t("visionChatAiLabel");
-      const lessonButton = message.role === "ai" && message.lessonKey
-        ? `<button class="vision-chat-lesson-trigger" type="button" data-lesson-message-index="${state.messages.indexOf(message)}" aria-label="${t("visionChatLessonKicker")}" title="${t("visionChatLessonKicker")}">?</button>`
-        : "";
-      const quizButton = message.role === "ai"
-        && index === lastAiMessageIndex
-        && areAllChallengesComplete()
-        && state.reflectionAvailable
-        && !state.reflectionCompleted
-        && !state.reflectionOpen
-        ? `<button class="vision-chat-quiz-trigger" type="button" data-open-vision-quiz="true">${t("imageClassifierReflectionStart")}</button>`
-        : "";
       return `
         <div class="vision-chat-message ${message.role}">
           <div class="vision-chat-bubble">
             <div class="vision-chat-bubble-topline">
               <span class="vision-chat-bubble-role">${roleLabel}</span>
-              ${lessonButton}
             </div>
             <div>${resolveMessageText(message)}</div>
-            ${quizButton}
           </div>
         </div>
       `;
     }).join("");
-
-    chatLogEl.querySelectorAll("[data-lesson-message-index]").forEach((button) => {
-      button.addEventListener("click", () => {
-        const index = Number(button.getAttribute("data-lesson-message-index"));
-        if (Number.isFinite(index)) {
-          openLessonPopup(index);
-        }
-      });
-    });
-
-    chatLogEl.querySelectorAll("[data-open-vision-quiz='true']").forEach((button) => {
-      button.addEventListener("click", openVisionReflectionPopup);
-    });
-
     chatLogEl.scrollTop = chatLogEl.scrollHeight;
   }
 
@@ -539,14 +489,6 @@
     if (intent === "counterexample") return t(image.counterKey);
     if (intent === "generalization") return t("visionChatGeneralizationReply");
     return t(image.genericKey);
-  }
-
-  function getNextChallenge() {
-    return challenges.find((challenge) => !state.completedChallenges.has(challenge.id)) || null;
-  }
-
-  function areAllChallengesComplete() {
-    return challenges.every((challenge) => state.completedChallenges.has(challenge.id));
   }
 
   function resetVisionReflectionState() {
@@ -604,6 +546,7 @@
     if (visionReflectionQuestionEl) visionReflectionQuestionEl.hidden = state.reflectionCompleted;
     if (visionReflectionSummaryEl) visionReflectionSummaryEl.hidden = !state.reflectionCompleted;
     if (visionReflectionContinueBtn) visionReflectionContinueBtn.hidden = !state.reflectionCompleted;
+    if (visionReflectionExitBtn) visionReflectionExitBtn.hidden = !state.reflectionCompleted;
 
     if (state.reflectionCompleted) {
       renderVisionReflectionSummary();
@@ -614,11 +557,22 @@
     renderVisionReflectionQuestion();
   }
 
+  function updateVisionReflectionTrigger() {
+    if (!visionReflectionStartBtn) return;
+    const shouldShow = state.hasSavedDrawing && !state.reflectionCompleted && !state.reflectionOpen;
+    const isEnabled = state.firstAnswerGiven && state.reflectionAvailable && !state.requestInFlight;
+    visionReflectionStartBtn.classList.toggle("hidden", !shouldShow);
+    visionReflectionStartBtn.hidden = !shouldShow;
+    visionReflectionStartBtn.disabled = !isEnabled;
+    visionReflectionStartBtn.setAttribute("aria-disabled", isEnabled ? "false" : "true");
+  }
+
   function openVisionReflectionPopup() {
     if (!visionReflectionPopup || !state.reflectionAvailable || state.reflectionCompleted || state.reflectionOpen) return;
     state.reflectionOpen = true;
     resetVisionReflectionState();
     renderMessages();
+    updateVisionReflectionTrigger();
     renderVisionReflection();
     visionReflectionPopup.classList.remove("hidden");
     visionReflectionPopup.setAttribute("aria-hidden", "false");
@@ -634,21 +588,61 @@
     visionReflectionPopup.classList.add("hidden");
     visionReflectionPopup.setAttribute("aria-hidden", "true");
     renderMessages();
+    updateVisionReflectionTrigger();
     if (restoreFocus) {
-      chatLogEl.querySelector("[data-open-vision-quiz='true']")?.focus();
+      visionReflectionStartBtn?.focus();
     }
+  }
+
+  function clearVisionConfettiBurst() {
+    if (state.confettiCleanupTimeoutId !== null) {
+      window.clearTimeout(state.confettiCleanupTimeoutId);
+      state.confettiCleanupTimeoutId = null;
+    }
+    if (visionConfettiLayerEl) {
+      visionConfettiLayerEl.innerHTML = "";
+    }
+  }
+
+  function launchVisionConfettiBurst() {
+    if (!visionConfettiLayerEl) return;
+
+    clearVisionConfettiBurst();
+
+    const colors = ["#f9c74f", "#f3722c", "#f94144", "#90be6d", "#577590", "#f9844a"];
+    const pieceCount = 42;
+
+    for (let index = 0; index < pieceCount; index += 1) {
+      const piece = document.createElement("span");
+      piece.className = "classifier-confetti-piece";
+      piece.style.left = `${42 + Math.random() * 16}%`;
+      piece.style.background = colors[index % colors.length];
+      piece.style.animationDelay = `${Math.random() * 140}ms`;
+      piece.style.animationDuration = `${1200 + Math.random() * 420}ms`;
+      piece.style.setProperty("--confetti-x", `${(Math.random() - 0.5) * 520}px`);
+      piece.style.setProperty("--confetti-rotate", `${360 + Math.random() * 720}deg`);
+      piece.style.width = `${9 + Math.random() * 7}px`;
+      piece.style.height = `${14 + Math.random() * 12}px`;
+      visionConfettiLayerEl.appendChild(piece);
+    }
+
+    state.confettiCleanupTimeoutId = window.setTimeout(() => {
+      clearVisionConfettiBurst();
+    }, 1900);
   }
 
   function handleVisionReflectionChoice(question, selectedValue, button) {
     if (state.reflectionCompleted) return;
 
     if (selectedValue === question.correct) {
+      launchVisionConfettiBurst();
       state.reflectionIndex += 1;
       if (state.reflectionIndex >= visionReflectionQuestions.length) {
         state.reflectionCompleted = true;
         state.reflectionAvailable = false;
         renderMessages();
       }
+      updateVisionReflectionTrigger();
       renderVisionReflection();
       window.requestAnimationFrame(() => {
         if (state.reflectionCompleted) {
@@ -697,6 +691,26 @@
     } else {
       challengesHelperEl.textContent = "";
     }
+  }
+
+  function renderChallenges() {
+    challengeGridEl.innerHTML = challenges.map((challenge) => {
+      return `
+        <div class="vision-challenge-card" data-challenge-id="${challenge.id}" role="listitem">
+          <span class="vision-challenge-card-row">
+            <span class="vision-challenge-card-marker" aria-hidden="true">•</span>
+            <span class="vision-challenge-card-copy-wrap">
+              <span class="vision-challenge-card-copy">${t(challenge.copyKey)}</span>
+            </span>
+          </span>
+        </div>
+      `;
+    }).join("");
+
+    if (challengesHelperEl) {
+      challengesHelperEl.textContent = "";
+    }
+    updateVisionReflectionTrigger();
   }
 
   function updateProgressiveFlow() {
@@ -1138,10 +1152,9 @@
   async function saveDoodle() {
     if (!state.hasDraftDrawing) return;
 
-    await ensureVisionDrawingsLoaded();
     clearSavedCanvas();
     savedCtx.drawImage(drawCanvas, 0, 0, savedCanvas.width, savedCanvas.height);
-    state.savedImageId = classifySavedDrawing();
+    state.savedImageId = null;
     state.hasSavedDrawing = true;
     state.savedDraftImage = drawCtx.getImageData(0, 0, drawCanvas.width, drawCanvas.height);
     state.drawingDirty = false;
@@ -1188,8 +1201,7 @@
   }
 
   async function submitPrompt(promptOrKey, options = {}) {
-    const image = getSavedImage();
-    if (!image || state.requestInFlight) return;
+    if (!state.hasSavedDrawing || state.requestInFlight) return;
 
     const promptKey = promptOrKey.startsWith("visionChatPrompt") ? promptOrKey : null;
     const rawText = promptKey ? null : promptOrKey.trim();
@@ -1208,7 +1220,7 @@
     });
     const aiMessage = {
       role: "ai",
-      imageId: image.id,
+      imageId: null,
       intent,
       text: t("visionChatThinking")
     };
@@ -1216,20 +1228,9 @@
     const firstAnswerThisTurn = !state.firstAnswerGiven;
     state.firstAnswerGiven = true;
     state.activeChallengeId = matchedChallengeId;
-    const newlyCompletedChallengeId = matchedChallengeId && !state.completedChallenges.has(matchedChallengeId)
-      ? matchedChallengeId
-      : null;
-    const lesson = newlyCompletedChallengeId ? getChallengeById(newlyCompletedChallengeId) : null;
+    const lesson = matchedChallengeId ? getChallengeById(matchedChallengeId) : null;
     aiMessage.lessonKey = lesson?.lessonKey || (firstAnswerThisTurn ? "visionChatLessonFirstAnswer" : null);
     state.messages.push(aiMessage);
-
-    if (newlyCompletedChallengeId) {
-      state.completedChallenges.add(newlyCompletedChallengeId);
-    }
-
-    if (areAllChallengesComplete() && !state.reflectionCompleted) {
-      state.reflectionAvailable = true;
-    }
 
     updateProgressiveFlow();
     renderMessages();
@@ -1251,6 +1252,9 @@
       });
     } finally {
       state.requestInFlight = false;
+      if (state.firstAnswerGiven && !state.reflectionCompleted) {
+        state.reflectionAvailable = true;
+      }
       updateProgressiveFlow();
       renderMessages();
       renderChallenges();
@@ -1480,18 +1484,20 @@
   resetDoodleEl.addEventListener("click", handleResetDoodle);
   undoDoodleEl.addEventListener("click", handleUndoDoodle);
   redoDoodleEl.addEventListener("click", handleRedoDoodle);
-  if (lessonPopupCloseEl) {
-    lessonPopupCloseEl.addEventListener("click", closeLessonPopup);
-  }
-  if (lessonPopupEl) {
-    lessonPopupEl.addEventListener("click", (event) => {
-      if (event.target === lessonPopupEl) {
-        closeLessonPopup();
-      }
-    });
-  }
   if (visionReflectionContinueBtn) {
     visionReflectionContinueBtn.addEventListener("click", () => closeVisionReflectionPopup());
+  }
+  if (visionReflectionStartBtn) {
+    visionReflectionStartBtn.addEventListener("click", openVisionReflectionPopup);
+  }
+  if (visionReflectionCloseBtn) {
+    visionReflectionCloseBtn.addEventListener("click", () => closeVisionReflectionPopup());
+  }
+
+  if (visionReflectionExitBtn) {
+    visionReflectionExitBtn.addEventListener("click", () => {
+      window.location.href = "index.html";
+    });
   }
   if (visionReflectionPopup) {
     visionReflectionPopup.addEventListener("click", (event) => {
@@ -1504,9 +1510,6 @@
     updateDocumentLanguage();
     if (!state.hasDraftDrawing) {
       resetDraftCanvas();
-    }
-    if (state.openLessonMessageIndex !== null) {
-      openLessonPopup(state.openLessonMessageIndex);
     }
     renderSavedDrawingState();
     renderVisionReflection();
